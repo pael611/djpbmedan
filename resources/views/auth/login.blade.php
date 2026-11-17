@@ -12,11 +12,11 @@
                 <img src="{{ asset('image/Logo.png') }}" alt="Logo Kementerian Keuangan Republik Indonesia" class="h-16 w-16 shrink-0 object-contain">
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-wide text-[#005FAC]">Kementerian Keuangan</p>
-                    <h1 class="mt-1 text-lg font-bold leading-tight text-slate-900">Sistem</h1>
+                    <h1 class="mt-1 text-lg font-bold leading-tight text-slate-900">Sistem Pemantauan Risiko</h1>
                 </div>
             </div>
 
-            <p class="mb-5 text-sm text-slate-500">Masuk untuk melanjutkan kuliah ke akun Anda.</p>
+            <p class="mb-5 text-sm text-slate-500">Masuk untuk melanjutkan ke akun Anda.</p>
 
             <form method="POST" action="{{ route('login') }}" class="space-y-4">
                 @csrf
