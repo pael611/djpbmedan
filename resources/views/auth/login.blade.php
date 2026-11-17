@@ -16,7 +16,7 @@
                 </div>
             </div>
 
-            <p class="mb-5 text-sm text-slate-500">Masuk untuk melanjutkan ke akun Anda.</p>
+            <p class="mb-5 text-sm text-slate-500">Masuk untuk melanjutkan kuliah ke akun Anda.</p>
 
             <form method="POST" action="{{ route('login') }}" class="space-y-4">
                 @csrf
