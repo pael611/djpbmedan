@@ -27,6 +27,21 @@
         <label class="block text-sm mb-1">Kejadian Risiko</label>
         <textarea name="kejadian_risiko" rows="3" required class="border rounded px-3 py-2 w-full">{{ old('kejadian_risiko', $risiko->kejadian_risiko) }}</textarea>
     </div>
+    <div>
+        <label for="jenis_risiko" class="block text-sm mb-1">Jenis Risiko</label>
+        <select id="jenis_risiko" name="jenis_risiko" class="border rounded px-3 py-2 w-full" required>
+            @foreach(\App\Models\Risiko::JENIS_RISIKO as $jenis => $label)
+                <option value="{{ $jenis }}" @selected(old('jenis_risiko', $risiko->jenis_risiko) === $jenis)>{{ $label }}</option>
+            @endforeach
+        </select>
+        <p class="mt-2 text-sm text-slate-600">
+            <span class="font-semibold">Informasi:</span>
+            Dasar utama penentuan risiko adalah Sasaran Organisasi (SO). Peristiwa tanpa dampak terhadap SO bukan risiko.
+            Downside Risk berdampak negatif (menggagalkan, menunda, menghambat, atau mengurangi optimalisasi pencapaian SO);
+            semakin tinggi levelnya, semakin besar hambatannya. Upside Risk adalah peluang berdampak positif yang meningkatkan
+            keberhasilan pencapaian SO; semakin tinggi levelnya, semakin besar dampak positifnya.
+        </p>
+    </div>
 
     <div class="grid grid-cols-2 gap-4 md:grid-cols-6">
         <div>

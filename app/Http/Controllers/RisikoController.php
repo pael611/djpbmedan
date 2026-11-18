@@ -23,6 +23,7 @@ class RisikoController extends Controller
         $rules = [
             'sasaran' => ['required', 'string'],
             'kejadian_risiko' => ['required', 'string'],
+            'jenis_risiko' => ['required', Rule::in(array_keys(Risiko::JENIS_RISIKO))],
             'level_kemungkinan' => ['required', 'integer', 'between:1,5'],
             'level_dampak' => ['required', 'integer', 'between:1,5'],
             'triwulan' => ['required', 'integer', 'between:1,4'],

@@ -24,8 +24,13 @@
                             <div class="flex flex-wrap gap-1">
                                 @foreach($matriks[$k][$d] as $r)
                                     <a href="{{ route('risiko.show', $r) }}"
-                                       title="{{ $r->bidang->nama }}: {{ \Illuminate\Support\Str::limit($r->kejadian_risiko, 80) }}"
-                                       class="bg-white/90 text-slate-900 text-xs font-bold rounded-full min-w-6 h-6 px-1 inline-flex items-center justify-center hover:bg-white">
+                                       title="{{ \App\Models\Risiko::JENIS_RISIKO[$r->jenis_risiko] }} — {{ $r->bidang->nama }}: {{ \Illuminate\Support\Str::limit($r->kejadian_risiko, 80) }}"
+                                       aria-label="{{ \App\Models\Risiko::JENIS_RISIKO[$r->jenis_risiko] }} ID {{ $r->id }}"
+                                       data-jenis-risiko="{{ $r->jenis_risiko }}"
+                                       @if($r->jenis_risiko === 'downside')
+                                           style="clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%)"
+                                       @endif
+                                       class="bg-white/90 text-slate-900 text-xs font-bold {{ $r->jenis_risiko === 'upside' ? 'rounded-full min-w-8 h-6 px-2' : 'min-w-7 h-7 px-1' }} inline-flex items-center justify-center hover:bg-white">
                                         {{ $r->id }}
                                     </a>
                                 @endforeach

@@ -3,9 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Bidang;
+use App\Models\Risiko;
 use App\Models\User;
-use Barryvdh\DomPDF\PDF as DomPdfDocument;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Barryvdh\DomPDF\PDF as DomPdfDocument;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Response;
 use Tests\TestCase;
@@ -29,6 +30,7 @@ class RisikoPriorityTest extends TestCase
         $response = $this->actingAs($user)->post(route('risiko.store'), [
             'sasaran' => 'Meningkatkan kepatuhan',
             'kejadian_risiko' => 'Keterlambatan tindak lanjut',
+            'jenis_risiko' => 'downside',
             'level_kemungkinan' => 3,
             'level_dampak' => 4,
             'triwulan' => 1,
@@ -62,6 +64,7 @@ class RisikoPriorityTest extends TestCase
             ->post(route('risiko.store'), [
                 'sasaran' => 'Meningkatkan kepatuhan',
                 'kejadian_risiko' => 'Keterlambatan tindak lanjut',
+                'jenis_risiko' => 'downside',
                 'level_kemungkinan' => 3,
                 'level_dampak' => 4,
                 'triwulan' => 1,
@@ -140,7 +143,7 @@ class RisikoPriorityTest extends TestCase
     }
 
     /**
-     * @return array{0: \App\Models\Risiko, 1: \App\Models\Risiko, 2: \App\Models\Risiko}
+     * @return array{0: Risiko, 1: Risiko, 2: Risiko}
      */
     private function createPrioritizedRisks(Bidang $bidang): array
     {

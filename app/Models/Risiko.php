@@ -27,10 +27,19 @@ class Risiko extends Model
         'Operasional' => 6,
     ];
 
+    public const JENIS_RISIKO = [
+        'downside' => 'Downside Risk',
+        'upside' => 'Upside Risk',
+    ];
+
+    protected $attributes = [
+        'jenis_risiko' => 'downside',
+    ];
+
     protected $table = 'risiko';
 
     protected $fillable = [
-        'bidang_id', 'sasaran', 'kejadian_risiko',
+        'bidang_id', 'sasaran', 'kejadian_risiko', 'jenis_risiko',
         'level_kemungkinan', 'level_dampak',
         'besaran_risiko', 'warna_risiko',
         'triwulan', 'tahun', 'kategori_risiko', 'bobot_area_dampak',
