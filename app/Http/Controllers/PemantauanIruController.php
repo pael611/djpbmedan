@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\IndikatorRisiko;
+use App\Models\PemantauanIru;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,65 @@ class PemantauanIruController extends Controller
         $risiko = $indikatorRisiko->risiko;
         abort_unless($risiko->bolehDiaksesOleh($request->user()), 403);
 
+        $data = $this->validatedData($request, $indikatorRisiko);
+        $data['user_id'] = $request->user()->id;
+        unset($data['triwulan'], $data['tahun']);
+        $indikatorRisiko->pemantauanIru()->create($data);
+
+        return back()->with('success', 'Nilai aktual IRU berhasil dicatat.');
+    }
+
+    public function update(Request $request, PemantauanIru $pemantauanIru): RedirectResponse
+    {
+        $indikatorRisiko = $pemantauanIru->indikatorRisiko;
+        abort_unless($indikatorRisiko->risiko->bolehDiaksesOleh($request->user()), 403);
+        $data = $this->validatedData($request, $indikatorRisiko, $pemantauanIru);
+        unset($data['triwulan'], $data['tahun']);
+
+        if ($request->user()->isPrivileged()) {
+            $pemantauanIru->update($data);
+
+            return back()->with('success', 'Nilai aktual IRU diperbarui.');
+        }
+
+        $this->requestChange($request, $pemantauanIru, 'pengukuran', 'update', $data);
+
+        return back()->with('success', 'Perubahan nilai aktual IRU diajukan untuk persetujuan Admin atau SKKI.');
+    }
+
+    public function destroy(Request $request, PemantauanIru $pemantauanIru): RedirectResponse
+    {
+        abort_unless(
+            $pemantauanIru->indikatorRisiko->risiko->bolehDiaksesOleh($request->user()),
+            403
+        );
+
+        if (! $request->user()->isPrivileged()) {
+            $this->requestChange($request, $pemantauanIru, 'pengukuran', 'delete');
+
+            return back()->with('success', 'Penghapusan nilai aktual diajukan untuk persetujuan Admin atau SKKI.');
+        }
+
+        $pemantauanIru->delete();
+
+        return back()->with('success', 'Nilai aktual IRU dihapus.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatedData(
+        Request $request,
+        IndikatorRisiko $indikatorRisiko,
+        ?PemantauanIru $pemantauanIru = null
+    ): array {
+        $uniqueDate = Rule::unique('pemantauan_iru')
+            ->where(fn ($query) => $query->where('indikator_risiko_id', $indikatorRisiko->id));
+
+        if ($pemantauanIru) {
+            $uniqueDate->ignore($pemantauanIru->id);
+        }
+
         $validator = Validator::make($request->all(), [
             'triwulan' => ['required', 'integer', 'between:1,4'],
             'tahun' => ['required', 'integer', 'between:2020,2100'],
@@ -24,9 +84,7 @@ class PemantauanIruController extends Controller
                 'required',
                 'date',
                 'before_or_equal:today',
-                Rule::unique('pemantauan_iru')->where(
-                    fn ($query) => $query->where('indikator_risiko_id', $indikatorRisiko->id)
-                ),
+                $uniqueDate,
             ],
             'nilai_aktual' => [
                 'required',
@@ -53,11 +111,6 @@ class PemantauanIruController extends Controller
             }
         });
 
-        $data = $validator->validate();
-        $data['user_id'] = $request->user()->id;
-        unset($data['triwulan'], $data['tahun']);
-        $indikatorRisiko->pemantauanIru()->create($data);
-
-        return back()->with('success', 'Nilai aktual IRU berhasil dicatat.');
+        return $validator->validate();
     }
 }

@@ -24,6 +24,11 @@ class KejadianLed extends Model
         'kondisi_setelah_mitigasi',
         'kejadian_luar_biasa',
         'dilaporkan_pada',
+        'bukti_path',
+        'status_verifikasi',
+        'diverifikasi_oleh',
+        'diverifikasi_pada',
+        'catatan_verifikasi',
     ];
 
     protected function casts(): array
@@ -32,6 +37,7 @@ class KejadianLed extends Model
             'terjadi_pada' => 'datetime',
             'dilaporkan_pada' => 'datetime',
             'kejadian_luar_biasa' => 'boolean',
+            'diverifikasi_pada' => 'datetime',
         ];
     }
 
@@ -43,6 +49,11 @@ class KejadianLed extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function diverifikasiOleh(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'diverifikasi_oleh');
     }
 
     public function terlambatDilaporkan(): bool

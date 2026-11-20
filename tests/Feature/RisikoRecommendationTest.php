@@ -181,7 +181,7 @@ class RisikoRecommendationTest extends TestCase
         ];
     }
 
-    public function test_unprivileged_user_cannot_update_quarter_recommendation(): void
+    public function test_unprivileged_user_can_only_request_recommendation_updates(): void
     {
         $bidang = Bidang::create(['kode' => 'A', 'nama' => 'Bidang A']);
         $user = User::create([
@@ -212,15 +212,22 @@ class RisikoRecommendationTest extends TestCase
                 'tahun' => 2026,
                 'deskripsi_rekomendasi' => 'Tidak boleh diperbarui.',
             ])
-            ->assertForbidden();
+            ->assertRedirect()
+            ->assertSessionHas('success', 'Perubahan rekomendasi diajukan untuk persetujuan Admin atau SKKI.');
 
         $this->assertDatabaseHas('rekomendasi_risiko', [
             'id' => $rekomendasi->id,
             'deskripsi_rekomendasi' => 'Rekomendasi awal.',
         ]);
+        $this->assertDatabaseHas('permintaan_persetujuans', [
+            'subject_type' => 'rekomendasi',
+            'subject_id' => $rekomendasi->id,
+            'action' => 'update',
+            'status' => 'pending',
+        ]);
     }
 
-    public function test_unprivileged_user_can_only_view_recommendations_without_edit_forms(): void
+    public function test_unprivileged_user_can_request_recommendation_changes(): void
     {
         $bidang = Bidang::create(['kode' => 'A', 'nama' => 'Bidang A']);
         $user = User::create([
@@ -249,7 +256,8 @@ class RisikoRecommendationTest extends TestCase
             ->get(route('risiko.show', $risiko))
             ->assertOk()
             ->assertSee('Rekomendasi hanya-baca.')
-            ->assertDontSee('name="rekomendasi_level_kemungkinan"');
+            ->assertSee('Ajukan perubahan rekomendasi')
+            ->assertSee('Ajukan hapus rekomendasi');
     }
 
     public function test_duplicate_risk_quarter_recommendation_is_rejected(): void

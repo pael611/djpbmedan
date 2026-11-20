@@ -61,11 +61,38 @@ class RekomendasiRisikoController extends Controller
         RekomendasiRisiko $rekomendasiRisiko
     ): RedirectResponse {
         $risiko = $rekomendasiRisiko->risiko;
-        abort_unless($request->user()->isPrivileged(), 403);
+        abort_unless($risiko->bolehDiaksesOleh($request->user()), 403);
 
-        $rekomendasiRisiko->update($this->aturan($request, $risiko, $rekomendasiRisiko));
+        $data = $this->aturan($request, $risiko, $rekomendasiRisiko);
+
+        if ($request->user()->isPrivileged()) {
+            $rekomendasiRisiko->update($data);
+
+            return redirect()->route('risiko.show', $risiko)
+                ->with('success', 'Rekomendasi risiko triwulanan diperbarui.');
+        }
+
+        $this->requestChange($request, $rekomendasiRisiko, 'rekomendasi', 'update', $data);
 
         return redirect()->route('risiko.show', $risiko)
-            ->with('success', 'Rekomendasi risiko triwulanan diperbarui.');
+            ->with('success', 'Perubahan rekomendasi diajukan untuk persetujuan Admin atau SKKI.');
+    }
+
+    public function destroy(Request $request, RekomendasiRisiko $rekomendasiRisiko): RedirectResponse
+    {
+        $risiko = $rekomendasiRisiko->risiko;
+
+        abort_unless($risiko->bolehDiaksesOleh($request->user()), 403);
+
+        if (! $request->user()->isPrivileged()) {
+            $this->requestChange($request, $rekomendasiRisiko, 'rekomendasi', 'delete');
+
+            return back()->with('success', 'Penghapusan rekomendasi diajukan untuk persetujuan Admin atau SKKI.');
+        }
+
+        $rekomendasiRisiko->delete();
+
+        return redirect()->route('risiko.show', $risiko)
+            ->with('success', 'Rekomendasi risiko triwulanan dihapus.');
     }
 }

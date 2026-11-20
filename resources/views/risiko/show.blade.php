@@ -6,13 +6,16 @@
 <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
     <h1 class="text-2xl font-bold">Risiko #{{ $risiko->id }} <span class="text-base font-normal text-slate-500">— {{ $risiko->bidang->nama }}, TW {{ $risiko->triwulan }}/{{ $risiko->tahun }}</span></h1>
     <div class="flex gap-2">
-        <a href="{{ route('risiko.edit', $risiko) }}" class="border rounded px-3 py-1.5 text-sm bg-white">Ubah</a>
+        <a href="{{ route('risiko.edit', $risiko) }}" class="border rounded px-3 py-1.5 text-sm bg-white">{{ auth()->user()->isPrivileged() ? 'Ubah' : 'Ajukan ubah' }}</a>
         <form method="POST" action="{{ route('risiko.destroy', $risiko) }}" onsubmit="return confirm('Hapus kejadian risiko beserta mitigasinya?')">
             @csrf @method('DELETE')
-            <button class="border border-red-300 text-red-700 rounded px-3 py-1.5 text-sm bg-white">Hapus</button>
+            <button class="border border-red-300 text-red-700 rounded px-3 py-1.5 text-sm bg-white">{{ auth()->user()->isPrivileged() ? 'Hapus' : 'Ajukan hapus' }}</button>
         </form>
     </div>
 </div>
+@unless(auth()->user()->isPrivileged())
+    <p class="mb-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Pengajuan edit dan hapus akan diterapkan setelah disetujui Admin atau SKKI.</p>
+@endunless
 
 <div class="bg-white rounded-lg shadow p-5 mb-6 grid md:grid-cols-5 gap-4 text-sm">
     <div><div class="text-xs text-slate-500">Sasaran</div>{{ $risiko->sasaran }}</div>
@@ -73,8 +76,8 @@
             @if($indikatorWaspada->isNotEmpty())
                 <p class="mt-1">Nilai IRU terbaru berstatus Waspada/Awas: {{ $indikatorWaspada->pluck('nama_indikator')->join(', ') }}.</p>
             @endif
-            @if($risiko->kejadianLed->isNotEmpty())
-                <p class="mt-1">Terdapat {{ $risiko->kejadianLed->count() }} kejadian LED pada triwulan ini.</p>
+            @if($kejadianLedTerverifikasi->isNotEmpty())
+                <p class="mt-1">Terdapat {{ $kejadianLedTerverifikasi->count() }} kejadian LED terverifikasi pada triwulan ini.</p>
             @endif
             <p class="mt-2">
                 Saran analisis: pertimbangkan LK {{ $levelKemungkinanSebelumnya }} → {{ $saranLevelKemungkinan }} berdasarkan indikator dan/atau kejadian.
@@ -160,6 +163,43 @@
                         <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">Belum ada nilai aktual 6 bulan terakhir</span>
                     @endif
                 </div>
+                <details class="mt-3">
+                    <summary class="cursor-pointer text-sm text-sky-800">{{ auth()->user()->isPrivileged() ? 'Ubah indikator' : 'Ajukan perubahan indikator' }}</summary>
+                    <form method="POST" action="{{ route('indikator-iru.update', $indikator) }}" class="mt-2 grid gap-2 rounded border p-3 text-sm md:grid-cols-3">
+                        @csrf @method('PUT')
+                        <label>Nama indikator<input name="nama_indikator" required maxlength="150" value="{{ $indikator->nama_indikator }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label>Satuan<input name="satuan" required maxlength="50" value="{{ $indikator->satuan }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label>Polarisasi
+                            <select name="polarisasi" required class="mt-1 w-full rounded border px-2 py-1.5">
+                                @foreach(['minimize' => 'Minimize', 'maximize' => 'Maximize', 'stabilize' => 'Stabilize'] as $value => $label)
+                                    <option value="{{ $value }}" @selected($indikator->polarisasi === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label>BM · Batas Aman<input type="number" step="any" name="batas_aman" value="{{ $indikator->batas_aman }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label>BM bawah<input type="number" step="any" name="batas_aman_bawah" value="{{ $indikator->batas_aman_bawah }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label>BM atas<input type="number" step="any" name="batas_aman_atas" value="{{ $indikator->batas_aman_atas }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label>BA · Batas Atas<input type="number" step="any" name="batas_atas" value="{{ $indikator->batas_atas }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label>BB · Batas Bawah<input type="number" step="any" name="batas_bawah" value="{{ $indikator->batas_bawah }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label>Periode pemantauan
+                            <select name="periode_pemantauan" required class="mt-1 w-full rounded border px-2 py-1.5">
+                                @foreach(['bulanan' => 'Bulanan', 'triwulanan' => 'Triwulanan', 'semesteran' => 'Semesteran'] as $value => $label)
+                                    <option value="{{ $value }}" @selected($indikator->periode_pemantauan === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label>Penanggung jawab<input name="penanggung_jawab" maxlength="150" value="{{ $indikator->penanggung_jawab }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label>Penyedia data<input name="penyedia_data" maxlength="150" value="{{ $indikator->penyedia_data }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label>Formula<textarea name="formula" rows="2" class="mt-1 w-full rounded border px-2 py-1.5">{{ $indikator->formula }}</textarea></label>
+                        <label class="md:col-span-3">Definisi<textarea name="definisi" rows="2" class="mt-1 w-full rounded border px-2 py-1.5">{{ $indikator->definisi }}</textarea></label>
+                        <label class="md:col-span-3">Sumber data<textarea name="sumber_data" rows="2" class="mt-1 w-full rounded border px-2 py-1.5">{{ $indikator->sumber_data }}</textarea></label>
+                        <button class="justify-self-start rounded bg-sky-700 px-3 py-1.5 text-white">Simpan perubahan</button>
+                    </form>
+                </details>
+                <form method="POST" action="{{ route('indikator-iru.destroy', $indikator) }}" onsubmit="return confirm('Ajukan penghapusan indikator IRU?')" class="mt-2">
+                    @csrf @method('DELETE')
+                    <button class="text-xs text-red-700">{{ auth()->user()->isPrivileged() ? 'Hapus indikator' : 'Ajukan hapus indikator' }}</button>
+                </form>
                 <p class="mt-2 text-sm">{{ $indikator->definisi ?: 'Definisi belum diisi.' }}</p>
                 <p class="mt-1 text-xs text-slate-600">
                     BM:
@@ -177,7 +217,25 @@
                         <span class="font-medium">Nilai aktual (6 bulan terakhir):</span>
                         @foreach($indikator->pemantauanIru as $pengukuran)
                             @php($statusPengukuran = $indikator->statusUntuk((float) $pengukuran->nilai_aktual))
-                            <span class="ml-2">{{ $pengukuran->tanggal_pengukuran->format('d/m/Y') }}: {{ $pengukuran->nilai_aktual }} ({{ $statusPengukuran }})</span>
+                            <div class="mt-2 rounded border p-2">
+                                <span>{{ $pengukuran->tanggal_pengukuran->format('d/m/Y') }}: {{ $pengukuran->nilai_aktual }} ({{ $statusPengukuran }})</span>
+                                <details class="mt-1">
+                                    <summary class="cursor-pointer text-sky-800">{{ auth()->user()->isPrivileged() ? 'Ubah nilai' : 'Ajukan perubahan nilai' }}</summary>
+                                    <form method="POST" action="{{ route('pemantauan-iru.update', $pengukuran) }}" class="mt-2 grid gap-2 md:grid-cols-4">
+                                        @csrf @method('PUT')
+                                        <input type="hidden" name="triwulan" value="{{ $pengukuran->tanggal_pengukuran->quarter }}">
+                                        <input type="hidden" name="tahun" value="{{ $pengukuran->tanggal_pengukuran->year }}">
+                                                        <label>Tanggal<input type="date" name="tanggal_pengukuran" value="{{ $pengukuran->tanggal_pengukuran->toDateString() }}" onchange="const tanggal = new Date(this.value + 'T00:00:00'); this.form.elements.triwulan.value = Math.ceil((tanggal.getMonth() + 1) / 3); this.form.elements.tahun.value = tanggal.getFullYear();" required class="mt-1 w-full rounded border px-2 py-1"></label>
+                                        <label>Nilai aktual<input type="number" step="any" name="nilai_aktual" value="{{ $pengukuran->nilai_aktual }}" required class="mt-1 w-full rounded border px-2 py-1"></label>
+                                        <label class="md:col-span-2">Catatan<textarea name="catatan" rows="1" class="mt-1 w-full rounded border px-2 py-1">{{ $pengukuran->catatan }}</textarea></label>
+                                        <button class="justify-self-start rounded bg-sky-700 px-3 py-1 text-white">Simpan</button>
+                                    </form>
+                                </details>
+                                <form method="POST" action="{{ route('pemantauan-iru.destroy', $pengukuran) }}" onsubmit="return confirm('Ajukan penghapusan nilai aktual ini?')" class="mt-1">
+                                    @csrf @method('DELETE')
+                                    <button class="text-red-700">{{ auth()->user()->isPrivileged() ? 'Hapus nilai' : 'Ajukan hapus nilai' }}</button>
+                                </form>
+                            </div>
                         @endforeach
                     </div>
                 @endif
@@ -204,11 +262,11 @@
     <div class="flex flex-wrap items-start justify-between gap-2">
         <div>
             <h2 class="text-lg font-semibold">Loss Event Database (LED)</h2>
-            <p class="text-sm text-slate-500">Catat kejadian saat terjadi; kejadian luar biasa perlu dilaporkan paling lambat satu hari.</p>
+            <p class="text-sm text-slate-500">Admin/SKKI dapat mencatat LED langsung. Pengiriman dari bidang lain wajib disertai bukti dan baru dihitung setelah diverifikasi.</p>
         </div>
         <details class="w-full mt-2">
             <summary class="cursor-pointer text-sm font-medium text-sky-800">+ Catat kejadian LED</summary>
-            <form method="POST" action="{{ route('kejadian-led.store', $risiko) }}" class="grid md:grid-cols-2 gap-3 mt-3 rounded-md border p-3 text-sm">
+            <form method="POST" action="{{ route('kejadian-led.store', $risiko) }}" enctype="multipart/form-data" class="grid md:grid-cols-2 gap-3 mt-3 rounded-md border p-3 text-sm">
                 @csrf
                 <label>Waktu kejadian<input type="datetime-local" name="terjadi_pada" required max="{{ now()->format('Y-m-d\TH:i') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
                 <label>Waktu pelaporan (jika telah dilaporkan)<input type="datetime-local" name="dilaporkan_pada" max="{{ now()->format('Y-m-d\TH:i') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
@@ -218,6 +276,11 @@
                 <label>Dampak<textarea name="dampak" rows="2" required class="mt-1 border rounded px-2 py-1.5 w-full"></textarea></label>
                 <label>Tindakan mitigasi<textarea name="tindakan_mitigasi" rows="2" class="mt-1 border rounded px-2 py-1.5 w-full"></textarea></label>
                 <label class="md:col-span-2">Kondisi setelah mitigasi<textarea name="kondisi_setelah_mitigasi" rows="2" class="mt-1 border rounded px-2 py-1.5 w-full"></textarea></label>
+                @unless(auth()->user()->isPrivileged())
+                    <label class="md:col-span-2">Bukti kejadian (PDF, gambar, atau dokumen; maks. 10 MB)
+                        <input type="file" name="bukti_kejadian" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" class="mt-1 w-full rounded border px-2 py-1.5">
+                    </label>
+                @endunless
                 <button class="md:col-span-2 justify-self-start rounded bg-sky-700 px-4 py-2 text-white">Simpan kejadian</button>
             </form>
         </details>
@@ -226,6 +289,12 @@
         <article class="mt-3 rounded-md border p-3 text-sm">
             <div class="flex flex-wrap justify-between gap-2">
                 <div class="font-semibold">{{ $kejadian->terjadi_pada->format('d/m/Y H:i') }}</div>
+                <span @class([
+                    'rounded-full px-2 py-1 text-xs font-semibold',
+                    'bg-amber-100 text-amber-900' => $kejadian->status_verifikasi === 'pending',
+                    'bg-emerald-100 text-emerald-800' => $kejadian->status_verifikasi === 'approved',
+                    'bg-red-100 text-red-800' => $kejadian->status_verifikasi === 'rejected',
+                ])>{{ ['pending' => 'Menunggu validasi', 'approved' => 'Bukti terverifikasi', 'rejected' => 'Bukti ditolak'][$kejadian->status_verifikasi] }}</span>
                 @if($kejadian->kejadian_luar_biasa)
                     <span @class([
                         'rounded-full px-2 py-1 text-xs font-semibold',
@@ -246,7 +315,60 @@
             @if($kejadian->tindakan_mitigasi)<p class="mt-1 text-slate-600">Mitigasi: {{ $kejadian->tindakan_mitigasi }}</p>@endif
             @if($kejadian->kondisi_setelah_mitigasi)<p class="mt-1 text-slate-600">Kondisi setelah mitigasi: {{ $kejadian->kondisi_setelah_mitigasi }}</p>@endif
             @if($kejadian->dilaporkan_pada)<p class="mt-1 text-xs text-slate-500">Dilaporkan: {{ $kejadian->dilaporkan_pada->format('d/m/Y H:i') }}</p>@endif
-            @if($kejadian->kejadian_luar_biasa)
+            @if($kejadian->bukti_path)
+                <a class="mt-1 inline-block text-blue-700 underline" href="{{ route('kejadian-led.evidence', $kejadian) }}">Lihat bukti kejadian</a>
+            @endif
+            @if($kejadian->catatan_verifikasi)
+                <p class="mt-1 text-xs text-slate-600">Catatan validasi: {{ $kejadian->catatan_verifikasi }}</p>
+            @endif
+            @if(auth()->user()->isPrivileged() && $kejadian->bukti_path)
+                <form method="POST" action="{{ route('kejadian-led.verify', $kejadian) }}" class="mt-2 flex flex-wrap items-end gap-2 text-xs">
+                    @csrf
+                    <label>Catatan validasi<input name="catatan_verifikasi" maxlength="2000" value="{{ $kejadian->catatan_verifikasi }}" class="mt-1 rounded border px-2 py-1"></label>
+                    <button name="status_verifikasi" value="approved" class="rounded bg-emerald-700 px-3 py-1.5 text-white">Sahkan bukti</button>
+                    <button name="status_verifikasi" value="rejected" class="rounded bg-red-700 px-3 py-1.5 text-white">Tolak bukti</button>
+                </form>
+            @endif
+            @if(auth()->user()->isPrivileged())
+                <details class="mt-2">
+                    <summary class="cursor-pointer text-sky-800">Ubah kejadian LED</summary>
+                    <form method="POST" action="{{ route('kejadian-led.update', $kejadian) }}" enctype="multipart/form-data" class="mt-2 grid gap-2 md:grid-cols-2">
+                        @csrf @method('PUT')
+                        <label>Waktu kejadian<input type="datetime-local" name="terjadi_pada" required value="{{ $kejadian->terjadi_pada->format('Y-m-d\TH:i') }}" class="mt-1 w-full rounded border px-2 py-1"></label>
+                        <label>Waktu pelaporan<input type="datetime-local" name="dilaporkan_pada" value="{{ $kejadian->dilaporkan_pada?->format('Y-m-d\TH:i') }}" class="mt-1 w-full rounded border px-2 py-1"></label>
+                        <input type="hidden" name="kejadian_luar_biasa" value="0">
+                        <label class="flex items-center gap-2"><input type="checkbox" name="kejadian_luar_biasa" value="1" @checked($kejadian->kejadian_luar_biasa)> Kejadian luar biasa</label>
+                        <label class="md:col-span-2">Uraian kejadian<textarea name="uraian_kejadian" rows="2" required class="mt-1 w-full rounded border px-2 py-1">{{ $kejadian->uraian_kejadian }}</textarea></label>
+                        <label>Dampak<textarea name="dampak" rows="2" required class="mt-1 w-full rounded border px-2 py-1">{{ $kejadian->dampak }}</textarea></label>
+                        <label>Tindakan mitigasi<textarea name="tindakan_mitigasi" rows="2" class="mt-1 w-full rounded border px-2 py-1">{{ $kejadian->tindakan_mitigasi }}</textarea></label>
+                        <label class="md:col-span-2">Kondisi setelah mitigasi<textarea name="kondisi_setelah_mitigasi" rows="2" class="mt-1 w-full rounded border px-2 py-1">{{ $kejadian->kondisi_setelah_mitigasi }}</textarea></label>
+                        <label class="md:col-span-2">Ganti bukti (opsional)<input type="file" name="bukti_kejadian" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" class="mt-1 w-full rounded border px-2 py-1"></label>
+                        <button class="justify-self-start rounded bg-sky-700 px-3 py-1.5 text-white">Simpan perubahan</button>
+                    </form>
+                </details>
+            @else
+                <details class="mt-2">
+                    <summary class="cursor-pointer text-sky-800">Ajukan perubahan kejadian</summary>
+                    <form method="POST" action="{{ route('kejadian-led.update', $kejadian) }}" enctype="multipart/form-data" class="mt-2 grid gap-2 md:grid-cols-2">
+                        @csrf @method('PUT')
+                        <label>Waktu kejadian<input type="datetime-local" name="terjadi_pada" required value="{{ $kejadian->terjadi_pada->format('Y-m-d\TH:i') }}" class="mt-1 w-full rounded border px-2 py-1"></label>
+                        <label>Waktu pelaporan<input type="datetime-local" name="dilaporkan_pada" value="{{ $kejadian->dilaporkan_pada?->format('Y-m-d\TH:i') }}" class="mt-1 w-full rounded border px-2 py-1"></label>
+                        <input type="hidden" name="kejadian_luar_biasa" value="0">
+                        <label class="flex items-center gap-2"><input type="checkbox" name="kejadian_luar_biasa" value="1" @checked($kejadian->kejadian_luar_biasa)> Kejadian luar biasa</label>
+                        <label class="md:col-span-2">Uraian kejadian<textarea name="uraian_kejadian" rows="2" required class="mt-1 w-full rounded border px-2 py-1">{{ $kejadian->uraian_kejadian }}</textarea></label>
+                        <label>Dampak<textarea name="dampak" rows="2" required class="mt-1 w-full rounded border px-2 py-1">{{ $kejadian->dampak }}</textarea></label>
+                        <label>Tindakan mitigasi<textarea name="tindakan_mitigasi" rows="2" class="mt-1 w-full rounded border px-2 py-1">{{ $kejadian->tindakan_mitigasi }}</textarea></label>
+                        <label class="md:col-span-2">Kondisi setelah mitigasi<textarea name="kondisi_setelah_mitigasi" rows="2" class="mt-1 w-full rounded border px-2 py-1">{{ $kejadian->kondisi_setelah_mitigasi }}</textarea></label>
+                        <label class="md:col-span-2">Bukti pengganti wajib diunggah<input type="file" name="bukti_kejadian" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" class="mt-1 w-full rounded border px-2 py-1"></label>
+                        <button class="justify-self-start rounded bg-sky-700 px-3 py-1.5 text-white">Ajukan perubahan</button>
+                    </form>
+                </details>
+            @endif
+            <form method="POST" action="{{ route('kejadian-led.destroy', $kejadian) }}" onsubmit="return confirm('Ajukan penghapusan kejadian ini?')" class="mt-2">
+                @csrf @method('DELETE')
+                <button class="text-xs text-red-700">{{ auth()->user()->isPrivileged() ? 'Hapus kejadian' : 'Ajukan hapus kejadian' }}</button>
+            </form>
+            @if(auth()->user()->isPrivileged() && $kejadian->kejadian_luar_biasa)
                 <form method="POST" action="{{ route('kejadian-led.report', $kejadian) }}" class="mt-2 flex flex-wrap items-end gap-2 text-xs">
                     @csrf @method('PUT')
                     <label>Waktu pelaporan
@@ -267,7 +389,7 @@
 <section class="bg-white rounded-lg shadow p-5 mb-6">
     <h2 class="text-lg font-semibold mb-1">Rekomendasi Risiko Triwulanan</h2>
     <p class="text-sm text-slate-500 mb-4">
-        Rekomendasi diisi terpisah dari progres bulanan dan hanya dapat dibuat atau diperbarui oleh Admin atau SKKI.
+        Rekomendasi baru dibuat langsung oleh Admin atau SKKI. Perubahan atau penghapusan dari bidang lain memerlukan persetujuan.
     </p>
 
     @if(auth()->user()->isPrivileged())
@@ -368,6 +490,10 @@
                         <button class="border rounded px-3 py-1.5">Perbarui rekomendasi</button>
                     </div>
                 </form>
+                <form method="POST" action="{{ route('rekomendasi.destroy', $rekomendasi) }}" onsubmit="return confirm('Hapus rekomendasi ini?')" class="mt-2">
+                    @csrf @method('DELETE')
+                    <button class="rounded border border-red-300 px-3 py-1.5 text-red-700">Hapus rekomendasi</button>
+                </form>
                 @else
                     <article class="rounded-md border border-slate-200 p-3 text-sm">
                         <div class="mb-2 font-semibold text-slate-700">Triwulan {{ $rekomendasi->triwulan }}/{{ $rekomendasi->tahun }}</div>
@@ -378,6 +504,42 @@
                                 @include('partials.badge', ['besaran' => $rekomendasi->rekomendasi_besaran])
                             </div>
                         @endif
+                        <details class="mt-3">
+                            <summary class="cursor-pointer text-sky-800">Ajukan perubahan rekomendasi</summary>
+                            <form method="POST" action="{{ route('rekomendasi.update', $rekomendasi) }}" class="mt-2 grid gap-2 md:grid-cols-2">
+                                @csrf @method('PUT')
+                                <label>Triwulan
+                                    <select name="triwulan" required class="mt-1 w-full rounded border px-2 py-1">
+                                        @foreach([1 => 'I', 2 => 'II', 3 => 'III', 4 => 'IV'] as $nomor => $nama)
+                                            <option value="{{ $nomor }}" @selected((int) $rekomendasi->triwulan === $nomor)>Triwulan {{ $nama }}</option>
+                                        @endforeach
+                                    </select>
+                                </label>
+                                <label>Tahun<input type="number" name="tahun" min="2020" max="2100" value="{{ $rekomendasi->tahun }}" required class="mt-1 w-full rounded border px-2 py-1"></label>
+                                <label>Level kemungkinan
+                                    <select name="rekomendasi_level_kemungkinan" class="mt-1 w-full rounded border px-2 py-1">
+                                        <option value="">Tidak diisi</option>
+                                        @for($i = 1; $i <= 5; $i++)
+                                            <option value="{{ $i }}" @selected((int) $rekomendasi->rekomendasi_level_kemungkinan === $i)>{{ $i }}</option>
+                                        @endfor
+                                    </select>
+                                </label>
+                                <label>Level dampak
+                                    <select name="rekomendasi_level_dampak" class="mt-1 w-full rounded border px-2 py-1">
+                                        <option value="">Tidak diisi</option>
+                                        @for($i = 1; $i <= 5; $i++)
+                                            <option value="{{ $i }}" @selected((int) $rekomendasi->rekomendasi_level_dampak === $i)>{{ $i }}</option>
+                                        @endfor
+                                    </select>
+                                </label>
+                                <label class="md:col-span-2">Uraian rekomendasi<textarea name="deskripsi_rekomendasi" rows="3" required class="mt-1 w-full rounded border px-2 py-1">{{ $rekomendasi->deskripsi_rekomendasi }}</textarea></label>
+                                <button class="justify-self-start rounded bg-sky-700 px-3 py-1.5 text-white">Ajukan perubahan</button>
+                            </form>
+                        </details>
+                        <form method="POST" action="{{ route('rekomendasi.destroy', $rekomendasi) }}" onsubmit="return confirm('Ajukan penghapusan rekomendasi ini?')" class="mt-2">
+                            @csrf @method('DELETE')
+                            <button class="text-red-700">Ajukan hapus rekomendasi</button>
+                        </form>
                     </article>
                 @endif
             @endforeach
@@ -393,11 +555,11 @@
         <form method="POST" action="{{ route('rencana.update', $rencana) }}" class="flex-1 flex gap-2">
             @csrf @method('PUT')
             <textarea name="deskripsi_rencana" rows="2" class="border rounded px-2 py-1 w-full text-sm">{{ $rencana->deskripsi_rencana }}</textarea>
-            <button class="border rounded px-3 text-sm">Simpan</button>
+            <button class="border rounded px-3 text-sm">{{ auth()->user()->isPrivileged() ? 'Simpan' : 'Ajukan ubah' }}</button>
         </form>
         <form method="POST" action="{{ route('rencana.destroy', $rencana) }}" onsubmit="return confirm('Hapus rencana ini?')">
             @csrf @method('DELETE')
-            <button class="text-red-700 text-sm">Hapus</button>
+            <button class="text-red-700 text-sm">{{ auth()->user()->isPrivileged() ? 'Hapus' : 'Ajukan hapus' }}</button>
         </form>
     </div>
 
@@ -414,8 +576,19 @@
                     @if($p->file_bukti)<a class="text-blue-700 hover:underline" target="_blank" href="{{ Storage::url($p->file_bukti) }}">Lihat</a>@else — @endif
                 </td>
                 <td class="p-2">
-                    <form method="POST" action="{{ route('progres.destroy', $p) }}" onsubmit="return confirm('Hapus progres?')">
-                        @csrf @method('DELETE') <button class="text-red-700">Hapus</button>
+                    <details>
+                        <summary class="cursor-pointer text-sky-800">{{ auth()->user()->isPrivileged() ? 'Ubah' : 'Ajukan ubah' }}</summary>
+                        <form method="POST" action="{{ route('progres.update', $p) }}" enctype="multipart/form-data" class="grid gap-2 rounded border p-2 md:grid-cols-2">
+                            @csrf @method('PUT')
+                            <input type="number" name="bulan" min="1" max="12" value="{{ $p->bulan }}" required class="rounded border px-2 py-1">
+                            <input type="number" name="tahun" min="2020" max="2100" value="{{ $p->tahun }}" required class="rounded border px-2 py-1">
+                            <textarea name="deskripsi_progres" rows="2" required class="md:col-span-2 rounded border px-2 py-1">{{ $p->deskripsi_progres }}</textarea>
+                            <input type="file" name="file_bukti" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" class="md:col-span-2 rounded border px-2 py-1">
+                            <button class="justify-self-start rounded bg-sky-700 px-3 py-1.5 text-white">Simpan</button>
+                        </form>
+                    </details>
+                    <form method="POST" action="{{ route('progres.destroy', $p) }}" onsubmit="return confirm('Ajukan penghapusan progres?')" class="mt-1">
+                        @csrf @method('DELETE') <button class="text-red-700">{{ auth()->user()->isPrivileged() ? 'Hapus' : 'Ajukan hapus' }}</button>
                     </form>
                 </td>
             </tr>
@@ -425,6 +598,7 @@
         </tbody>
     </table>
 
+    @if(auth()->user()->isPrivileged())
     <details class="mt-4">
         <summary class="cursor-pointer text-sm text-blue-700">+ Tambah progres</summary>
         <form method="POST" action="{{ route('progres.store', $rencana) }}" enctype="multipart/form-data" class="grid md:grid-cols-4 gap-3 mt-3 text-sm">
@@ -438,14 +612,17 @@
             <button class="bg-slate-900 text-white rounded px-3">Simpan</button>
         </form>
     </details>
+    @endif
 </div>
 @empty
     <p class="text-sm text-slate-500 mb-4">Belum ada rencana mitigasi.</p>
 @endforelse
 
+@if(auth()->user()->isPrivileged())
 <form method="POST" action="{{ route('rencana.store', $risiko) }}" class="bg-white rounded-lg shadow p-4 flex gap-2">
     @csrf
     <textarea name="deskripsi_rencana" rows="2" required placeholder="Tambah rencana mitigasi baru…" class="border rounded px-2 py-1 w-full text-sm"></textarea>
     <button class="bg-slate-900 text-white rounded px-4 text-sm">Tambah</button>
 </form>
+@endif
 @endsection

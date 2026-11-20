@@ -2,6 +2,9 @@
 @section('title', $risiko->exists ? 'Ubah Risiko' : 'Tambah Risiko')
 @section('content')
 <h1 class="text-2xl font-bold mb-4">{{ $risiko->exists ? 'Ubah' : 'Tambah' }} Kejadian Risiko</h1>
+@if($risiko->exists && ! auth()->user()->isPrivileged())
+    <p class="mb-4 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Perubahan akan dikirim sebagai permintaan dan baru diterapkan setelah disetujui Admin atau SKKI.</p>
+@endif
 
 <form method="POST" action="{{ $risiko->exists ? route('risiko.update', $risiko) : route('risiko.store') }}"
       class="bg-white rounded-lg shadow p-6 space-y-4 max-w-3xl">
@@ -84,7 +87,7 @@
     <div class="text-sm">Besaran risiko: <span id="preview" class="inline-block px-2 py-0.5 rounded font-semibold"></span></div>
 
     <div class="flex gap-2">
-        <button class="bg-slate-900 text-white rounded px-5 py-2 hover:bg-slate-700">Simpan</button>
+        <button class="bg-slate-900 text-white rounded px-5 py-2 hover:bg-slate-700">{{ $risiko->exists && ! auth()->user()->isPrivileged() ? 'Ajukan perubahan' : 'Simpan' }}</button>
         <a href="{{ url()->previous() }}" class="px-5 py-2 border rounded">Batal</a>
     </div>
 </form>

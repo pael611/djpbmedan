@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Bidang;
+use App\Models\PermintaanPersetujuan;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -84,9 +85,25 @@ class RisikoTypeTest extends TestCase
 
         $this->assertDatabaseHas('risiko', [
             'id' => $risiko->id,
+            'jenis_risiko' => 'downside',
+        ]);
+        $admin = User::create([
+            'name' => 'Admin',
+            'username' => 'admin-risk-type-approval',
+            'email' => 'admin-risk-type-approval@example.test',
+            'password' => 'password',
+            'role' => 'ADMIN',
+        ]);
+        $request = PermintaanPersetujuan::query()->firstOrFail();
+
+        $this->actingAs($admin)
+            ->post(route('persetujuan.approve', $request))
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('risiko', [
+            'id' => $risiko->id,
             'jenis_risiko' => 'upside',
         ]);
-
         $this->get(route('risiko.edit', $risiko))
             ->assertOk()
             ->assertSee('value="upside" selected', false);

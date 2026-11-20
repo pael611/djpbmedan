@@ -17,6 +17,7 @@
         </a>
         @if(auth()->user()->isPrivileged())
             <a href="{{ route('dashboard.index') }}" class="rounded-md px-2 py-1 text-sm text-white/90 transition hover:bg-white/10 hover:text-[#FAB715]">Dashboard Master</a>
+            <a href="{{ route('persetujuan.index') }}" class="rounded-md px-2 py-1 text-sm text-white/90 transition hover:bg-white/10 hover:text-[#FAB715]">Persetujuan & Validasi</a>
         @endif
         @if(auth()->user()->bidang_id)
             <a href="{{ route('dashboard.bidang') }}" class="rounded-md px-2 py-1 text-sm text-white/90 transition hover:bg-white/10 hover:text-[#FAB715]">Dashboard Bidang</a>

@@ -28,9 +28,19 @@ class User extends Authenticatable
         return $this->belongsTo(Bidang::class);
     }
 
-    /** Admin & SKKI boleh melihat Dashboard Master dan seluruh data risiko. */
+    public function isAdministrator(): bool
+    {
+        return $this->role === 'ADMIN';
+    }
+
+    public function isSupervisor(): bool
+    {
+        return $this->role === 'SKKI';
+    }
+
+    /** Admin and SKKI supervisors can manage and review all risk data. */
     public function isPrivileged(): bool
     {
-        return in_array($this->role, ['ADMIN', 'SKKI'], true);
+        return $this->isAdministrator() || $this->isSupervisor();
     }
 }

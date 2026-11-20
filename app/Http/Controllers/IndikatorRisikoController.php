@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\IndikatorRisiko;
 use App\Models\Risiko;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -15,14 +16,64 @@ class IndikatorRisikoController extends Controller
     {
         abort_unless($risiko->bolehDiaksesOleh($request->user()), 403);
 
+        $risiko->indikatorIru()->create($this->validatedData($request, $risiko));
+
+        return back()->with('success', 'Indikator IRU berhasil ditambahkan.');
+    }
+
+    public function update(Request $request, IndikatorRisiko $indikatorRisiko): RedirectResponse
+    {
+        $risiko = $indikatorRisiko->risiko;
+        abort_unless($risiko->bolehDiaksesOleh($request->user()), 403);
+        $data = $this->validatedData($request, $risiko, $indikatorRisiko);
+
+        if ($request->user()->isPrivileged()) {
+            $indikatorRisiko->update($data);
+
+            return back()->with('success', 'Indikator IRU diperbarui.');
+        }
+
+        $this->requestChange($request, $indikatorRisiko, 'indikator', 'update', $data);
+
+        return back()->with('success', 'Perubahan indikator IRU diajukan untuk persetujuan Admin atau SKKI.');
+    }
+
+    public function destroy(Request $request, IndikatorRisiko $indikatorRisiko): RedirectResponse
+    {
+        abort_unless($indikatorRisiko->risiko->bolehDiaksesOleh($request->user()), 403);
+
+        if (! $request->user()->isPrivileged()) {
+            $this->requestChange($request, $indikatorRisiko, 'indikator', 'delete');
+
+            return back()->with('success', 'Penghapusan indikator IRU diajukan untuk persetujuan Admin atau SKKI.');
+        }
+
+        $indikatorRisiko->delete();
+
+        return back()->with('success', 'Indikator IRU dihapus.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatedData(
+        Request $request,
+        Risiko $risiko,
+        ?IndikatorRisiko $indikatorRisiko = null
+    ): array {
+        $uniqueName = Rule::unique('indikator_risiko')
+            ->where(fn ($query) => $query->where('risiko_id', $risiko->id));
+
+        if ($indikatorRisiko) {
+            $uniqueName->ignore($indikatorRisiko->id);
+        }
+
         $validator = Validator::make($request->all(), [
             'nama_indikator' => [
                 'required',
                 'string',
                 'max:150',
-                Rule::unique('indikator_risiko')->where(
-                    fn ($query) => $query->where('risiko_id', $risiko->id)
-                ),
+                $uniqueName,
             ],
             'definisi' => ['nullable', 'string'],
             'satuan' => ['required', 'string', 'max:50'],
@@ -78,8 +129,6 @@ class IndikatorRisikoController extends Controller
             unset($data['batas_aman']);
         }
 
-        $risiko->indikatorIru()->create($data);
-
-        return back()->with('success', 'Indikator IRU berhasil ditambahkan.');
+        return $data;
     }
 }

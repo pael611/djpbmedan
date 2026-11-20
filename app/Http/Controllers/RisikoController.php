@@ -109,6 +109,8 @@ class RisikoController extends Controller
                     && (int) $rekomendasi->triwulan < $triwulanEvaluasi);
         $levelKemungkinanSebelumnya = $rekomendasiSebelumnya?->rekomendasi_level_kemungkinan
             ?? $risiko->level_kemungkinan;
+        $kejadianLedTerverifikasi = $risiko->kejadianLed
+            ->where('status_verifikasi', 'approved');
         $indikatorWaspada = $risiko->indikatorIru->filter(
             fn ($indikator): bool => $indikator->pemantauanIru->isNotEmpty()
                 && $indikator->statusUntuk((float) $indikator->pemantauanIru->first()->nilai_aktual) !== 'Aman'
@@ -117,7 +119,7 @@ class RisikoController extends Controller
             fn ($indikator): bool => $indikator->pemantauanIru->isEmpty()
         );
         $adaPeringatanKemungkinan = $indikatorWaspada->isNotEmpty()
-            || $risiko->kejadianLed->isNotEmpty();
+            || $kejadianLedTerverifikasi->isNotEmpty();
         $saranLevelKemungkinan = $adaPeringatanKemungkinan
             ? min(5, (int) $levelKemungkinanSebelumnya + 1)
             : null;
@@ -132,6 +134,7 @@ class RisikoController extends Controller
             'levelKemungkinanSebelumnya',
             'indikatorWaspada',
             'indikatorTanpaDataTerkini',
+            'kejadianLedTerverifikasi',
             'adaPeringatanKemungkinan',
             'saranLevelKemungkinan'
         ));
@@ -148,14 +151,30 @@ class RisikoController extends Controller
     {
         abort_unless($risiko->bolehDiaksesOleh($request->user()), 403);
 
-        $risiko->update($request->validate($this->aturan($request)));
+        $data = $request->validate($this->aturan($request));
 
-        return redirect()->route('risiko.show', $risiko)->with('success', 'Kejadian risiko diperbarui.');
+        if ($request->user()->isPrivileged()) {
+            $risiko->update($data);
+
+            return redirect()->route('risiko.show', $risiko)->with('success', 'Kejadian risiko diperbarui.');
+        }
+
+        $this->requestChange($request, $risiko, 'risiko', 'update', $data);
+
+        return redirect()->route('risiko.show', $risiko)
+            ->with('success', 'Perubahan risiko diajukan dan menunggu persetujuan Admin atau SKKI.');
     }
 
     public function destroy(Request $request, Risiko $risiko)
     {
         abort_unless($risiko->bolehDiaksesOleh($request->user()), 403);
+
+        if (! $request->user()->isPrivileged()) {
+            $this->requestChange($request, $risiko, 'risiko', 'delete');
+
+            return back()->with('success', 'Penghapusan risiko diajukan dan menunggu persetujuan Admin atau SKKI.');
+        }
+
         $risiko->delete();
 
         return redirect()->route('risiko.index')->with('success', 'Kejadian risiko dihapus.');
