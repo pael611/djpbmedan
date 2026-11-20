@@ -92,6 +92,9 @@ class PemantauanIruController extends Controller
                 'between:-99999999999999.9999,99999999999999.9999',
             ],
             'catatan' => ['nullable', 'string'],
+            'jenis_pegawai_perbaikan' => ['nullable', 'string', 'max:150'],
+            'jumlah_pegawai_perbaikan' => ['nullable', 'integer', 'between:1,65535'],
+            'catatan_evaluasi' => ['nullable', 'string'],
         ]);
 
         $validator->after(function (ValidatorInstance $validator) use ($request): void {

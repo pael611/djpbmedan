@@ -278,7 +278,10 @@
                 @if($risiko->rencana->isNotEmpty())
                     <ol class="content-list">
                         @foreach($risiko->rencana as $rencana)
-                            <li>{{ $rencana->deskripsi_rencana }}</li>
+                            <li>
+                                {{ $rencana->deskripsi_rencana }}
+                                <span class="muted">({{ ['pending' => 'Menunggu validasi', 'approved' => 'Terverifikasi', 'rejected' => 'Ditolak'][$rencana->status_verifikasi] ?? 'Belum divalidasi' }})</span>
+                            </li>
                         @endforeach
                     </ol>
                 @else
@@ -296,6 +299,7 @@
                             <li>
                                 <span class="muted">{{ $item->bulan }}/{{ $item->tahun }}:</span>
                                 {{ $item->deskripsi_progres }}
+                                <span class="muted">({{ ['pending' => 'Menunggu validasi', 'approved' => 'Terverifikasi', 'rejected' => 'Ditolak'][$item->status_verifikasi] ?? 'Belum divalidasi' }})</span>
                             </li>
                         @endforeach
                     </ol>

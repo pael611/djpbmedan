@@ -32,6 +32,60 @@
     <div class="mt-4">{{ $pendingEvidence->links() }}</div>
 </section>
 
+<section class="rounded-lg bg-white p-5 shadow mb-6">
+    <h2 class="text-lg font-semibold">Validasi rencana mitigasi</h2>
+    <div class="mt-4 space-y-3">
+        @forelse($pendingPlans as $rencana)
+            <article class="rounded border p-3 text-sm">
+                <div class="flex flex-wrap justify-between gap-2">
+                    <strong>{{ $rencana->risiko->bidang->nama }} · Risiko #{{ $rencana->risiko_id }}</strong>
+                    <span>Diajukan oleh {{ $rencana->user?->name ?? 'Pengguna tidak diketahui' }}</span>
+                </div>
+                <p class="mt-2">{{ $rencana->deskripsi_rencana }}</p>
+                <a class="mt-2 inline-block text-blue-700 underline" href="{{ route('rencana.evidence', $rencana) }}">Lihat bukti rencana</a>
+                <form method="POST" action="{{ route('rencana.verify', $rencana) }}" class="mt-3 flex flex-wrap items-end gap-2">
+                    @csrf
+                    <label class="min-w-64 flex-1">Catatan validasi
+                        <input name="catatan_verifikasi" maxlength="2000" class="mt-1 w-full rounded border px-2 py-1">
+                    </label>
+                    <button name="status_verifikasi" value="approved" class="rounded bg-emerald-700 px-3 py-2 text-white">Sahkan rencana</button>
+                    <button name="status_verifikasi" value="rejected" class="rounded bg-red-700 px-3 py-2 text-white">Tolak rencana</button>
+                </form>
+            </article>
+        @empty
+            <p class="text-sm text-slate-500">Tidak ada rencana mitigasi yang menunggu validasi.</p>
+        @endforelse
+    </div>
+    <div class="mt-4">{{ $pendingPlans->links() }}</div>
+</section>
+
+<section class="rounded-lg bg-white p-5 shadow mb-6">
+    <h2 class="text-lg font-semibold">Validasi progres mitigasi</h2>
+    <div class="mt-4 space-y-3">
+        @forelse($pendingProgress as $progres)
+            <article class="rounded border p-3 text-sm">
+                <div class="flex flex-wrap justify-between gap-2">
+                    <strong>{{ $progres->rencana->risiko->bidang->nama }} · Risiko #{{ $progres->rencana->risiko_id }}</strong>
+                    <span>{{ $progres->bulan }}/{{ $progres->tahun }} · Diajukan oleh {{ $progres->user?->name ?? 'Pengguna tidak diketahui' }}</span>
+                </div>
+                <p class="mt-2">{{ $progres->deskripsi_progres }}</p>
+                <a class="mt-2 inline-block text-blue-700 underline" href="{{ route('progres.evidence', $progres) }}">Lihat bukti progres</a>
+                <form method="POST" action="{{ route('progres.verify', $progres) }}" class="mt-3 flex flex-wrap items-end gap-2">
+                    @csrf
+                    <label class="min-w-64 flex-1">Catatan validasi
+                        <input name="catatan_verifikasi" maxlength="2000" class="mt-1 w-full rounded border px-2 py-1">
+                    </label>
+                    <button name="status_verifikasi" value="approved" class="rounded bg-emerald-700 px-3 py-2 text-white">Sahkan progres</button>
+                    <button name="status_verifikasi" value="rejected" class="rounded bg-red-700 px-3 py-2 text-white">Tolak progres</button>
+                </form>
+            </article>
+        @empty
+            <p class="text-sm text-slate-500">Tidak ada progres mitigasi yang menunggu validasi.</p>
+        @endforelse
+    </div>
+    <div class="mt-4">{{ $pendingProgress->links() }}</div>
+</section>
+
 <section class="rounded-lg bg-white p-5 shadow">
     <h2 class="text-lg font-semibold mb-4">Permintaan edit dan hapus</h2>
     <div class="space-y-3">
@@ -59,6 +113,9 @@
                             </div>
                         @endforeach
                     </dl>
+                    @if(isset($item->payload['bukti_path']))
+                        <a class="mt-2 inline-block text-blue-700 underline" href="{{ route('persetujuan.evidence', $item) }}">Lihat bukti perubahan</a>
+                    @endif
                 @endif
                 @if($item->review_note)
                     <p class="mt-2 text-slate-600">Catatan reviewer: {{ $item->review_note }}</p>

@@ -114,6 +114,9 @@ class IruLedMonitoringTest extends TestCase
                 'tahun' => 2026,
                 'tanggal_pengukuran' => '2026-05-01',
                 'nilai_aktual' => 15,
+                'jenis_pegawai_perbaikan' => 'Analis pelayanan',
+                'jumlah_pegawai_perbaikan' => 3,
+                'catatan_evaluasi' => 'Waktu layanan membaik.',
             ])
             ->assertRedirect();
 
@@ -125,9 +128,16 @@ class IruLedMonitoringTest extends TestCase
             ->assertOk()
             ->assertSee('Waspada')
             ->assertSee('LK 2 → 3')
-            ->assertSee('UPR tetap menetapkan LK');
+            ->assertSee('UPR tetap menetapkan LK')
+            ->assertSee('Perbaikan IRU: Analis pelayanan')
+            ->assertSee('Waktu layanan membaik.');
 
         $this->assertSame(2, (int) $risiko->fresh()->level_kemungkinan);
+        $this->assertDatabaseHas('pemantauan_iru', [
+            'jenis_pegawai_perbaikan' => 'Analis pelayanan',
+            'jumlah_pegawai_perbaikan' => 3,
+            'catatan_evaluasi' => 'Waktu layanan membaik.',
+        ]);
     }
 
     public function test_measurement_date_must_match_selected_quarter(): void
@@ -146,6 +156,27 @@ class IruLedMonitoringTest extends TestCase
                 'nilai_aktual' => 15,
             ])
             ->assertSessionHasErrors('tanggal_pengukuran');
+
+        $this->assertDatabaseCount('pemantauan_iru', 0);
+    }
+
+    public function test_measurement_rejects_an_invalid_improvement_employee_count(): void
+    {
+        $this->travelTo('2026-06-15 12:00:00');
+        $risiko = Risiko::factory()->create();
+        $user = $this->userFor($risiko->bidang);
+        $indikator = $risiko->indikatorIru()->create($this->minimizeIndicatorData());
+
+        $this->actingAs($user)
+            ->from(route('risiko.show', $risiko))
+            ->post(route('pemantauan-iru.store', $indikator), [
+                'triwulan' => 2,
+                'tahun' => 2026,
+                'tanggal_pengukuran' => '2026-05-01',
+                'nilai_aktual' => 15,
+                'jumlah_pegawai_perbaikan' => 0,
+            ])
+            ->assertSessionHasErrors('jumlah_pegawai_perbaikan');
 
         $this->assertDatabaseCount('pemantauan_iru', 0);
     }
@@ -426,6 +457,9 @@ class IruLedMonitoringTest extends TestCase
                 'tanggal_pengukuran' => '2026-05-01',
                 'nilai_aktual' => 9,
                 'catatan' => 'Nilai dikoreksi.',
+                'jenis_pegawai_perbaikan' => 'Analis layanan',
+                'jumlah_pegawai_perbaikan' => 3,
+                'catatan_evaluasi' => 'Waktu penyelesaian membaik.',
             ])
             ->assertRedirect()
             ->assertSessionHas('success', 'Perubahan nilai aktual IRU diajukan untuk persetujuan Admin atau SKKI.');
@@ -446,6 +480,9 @@ class IruLedMonitoringTest extends TestCase
             ->assertRedirect();
 
         $this->assertSame('9.0000', $measurement->fresh()->nilai_aktual);
+        $this->assertSame('Analis layanan', $measurement->fresh()->jenis_pegawai_perbaikan);
+        $this->assertSame(3, $measurement->fresh()->jumlah_pegawai_perbaikan);
+        $this->assertSame('Waktu penyelesaian membaik.', $measurement->fresh()->catatan_evaluasi);
         $this->assertDatabaseHas('permintaan_persetujuans', [
             'id' => $request->id,
             'status' => 'approved',
@@ -463,16 +500,200 @@ class IruLedMonitoringTest extends TestCase
         $this->assertDatabaseMissing('pemantauan_iru', ['id' => $measurement->id]);
     }
 
-    public function test_field_user_cannot_create_mitigation_plans(): void
+    public function test_field_user_can_submit_mitigation_plan_with_private_evidence_for_validation(): void
+    {
+        Storage::fake('local');
+        $risiko = Risiko::factory()->create();
+        $user = $this->userFor($risiko->bidang);
+
+        $this->actingAs($user)
+            ->post(route('rencana.store', $risiko), [
+                'deskripsi_rencana' => 'Rencana baru.',
+                'bukti_mitigasi' => UploadedFile::fake()->create('rencana.pdf', 20, 'application/pdf'),
+            ])
+            ->assertRedirect();
+
+        $rencana = $risiko->rencana()->firstOrFail();
+        $this->assertSame('pending', $rencana->status_verifikasi);
+        $this->assertSame($user->id, $rencana->user_id);
+        Storage::disk('local')->assertExists($rencana->bukti_path);
+
+        $otherField = $this->userFor(Bidang::factory()->create());
+        $this->actingAs($user)
+            ->get(route('risiko.show', $risiko))
+            ->assertOk()
+            ->assertSee('Tambah rencana')
+            ->assertSee('Tambah progres')
+            ->assertSee('Menunggu validasi');
+        $this->get(route('rencana.evidence', $rencana))->assertOk();
+        $this->actingAs($otherField)->get(route('rencana.evidence', $rencana))->assertForbidden();
+
+        $supervisor = User::create([
+            'name' => 'Supervisor',
+            'username' => 'supervisor-plan-review',
+            'email' => 'supervisor-plan-review@example.test',
+            'password' => 'password',
+            'role' => 'SKKI',
+        ]);
+        $this->actingAs($supervisor)
+            ->get(route('persetujuan.index'))
+            ->assertOk()
+            ->assertSee('Rencana baru.')
+            ->assertSee('Lihat bukti rencana');
+        $this->post(route('rencana.verify', $rencana), [
+            'status_verifikasi' => 'approved',
+            'catatan_verifikasi' => 'Bukti sesuai.',
+        ])->assertRedirect();
+
+        $this->assertDatabaseHas('rencana_mitigasi', [
+            'id' => $rencana->id,
+            'status_verifikasi' => 'approved',
+            'diverifikasi_oleh' => $supervisor->id,
+            'catatan_verifikasi' => 'Bukti sesuai.',
+        ]);
+    }
+
+    public function test_field_user_must_attach_evidence_to_a_mitigation_plan(): void
     {
         $risiko = Risiko::factory()->create();
         $user = $this->userFor($risiko->bidang);
 
         $this->actingAs($user)
+            ->from(route('risiko.show', $risiko))
             ->post(route('rencana.store', $risiko), ['deskripsi_rencana' => 'Rencana baru.'])
-            ->assertForbidden();
+            ->assertSessionHasErrors('bukti_mitigasi');
 
         $this->assertDatabaseCount('rencana_mitigasi', 0);
+    }
+
+    public function test_field_user_plan_edits_wait_for_evidence_approval(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('bukti-mitigasi/lama.pdf', 'Bukti lama');
+        $risiko = Risiko::factory()->create();
+        $user = $this->userFor($risiko->bidang);
+        $rencana = $risiko->rencana()->create([
+            'user_id' => $user->id,
+            'deskripsi_rencana' => 'Rencana awal.',
+            'bukti_path' => 'bukti-mitigasi/lama.pdf',
+            'status_verifikasi' => 'approved',
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('rencana.update', $rencana), [
+                'deskripsi_rencana' => 'Rencana diperbarui.',
+                'bukti_mitigasi' => UploadedFile::fake()->create('rencana-baru.pdf', 20, 'application/pdf'),
+            ])
+            ->assertRedirect();
+
+        $rencana->refresh();
+        $request = PermintaanPersetujuan::query()->firstOrFail();
+        $this->assertSame('Rencana awal.', $rencana->deskripsi_rencana);
+        $this->assertSame('pending', $request->status);
+
+        $supervisor = User::create([
+            'name' => 'Supervisor',
+            'username' => 'supervisor-plan-edit',
+            'email' => 'supervisor-plan-edit@example.test',
+            'password' => 'password',
+            'role' => 'SKKI',
+        ]);
+        $this->actingAs($supervisor)
+            ->get(route('persetujuan.evidence', $request))
+            ->assertOk();
+        $this->post(route('persetujuan.approve', $request))->assertRedirect();
+
+        $this->assertDatabaseHas('rencana_mitigasi', [
+            'id' => $rencana->id,
+            'deskripsi_rencana' => 'Rencana diperbarui.',
+            'status_verifikasi' => 'approved',
+            'diverifikasi_oleh' => $supervisor->id,
+        ]);
+        Storage::disk('local')->assertMissing('bukti-mitigasi/lama.pdf');
+        Storage::disk('local')->assertExists($request->fresh()->payload['bukti_path']);
+    }
+
+    public function test_approving_a_plan_edit_preserves_child_progress_evidence(): void
+    {
+        Storage::fake('local');
+        Storage::disk('local')->put('bukti-mitigasi/progres.pdf', 'Bukti progres');
+        $risiko = Risiko::factory()->create();
+        $user = $this->userFor($risiko->bidang);
+        $rencana = $risiko->rencana()->create(['deskripsi_rencana' => 'Rencana awal.']);
+        $progres = $rencana->progres()->create([
+            'deskripsi_progres' => 'Progres awal.',
+            'bulan' => 6,
+            'tahun' => 2026,
+            'bukti_path' => 'bukti-mitigasi/progres.pdf',
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('rencana.update', $rencana), [
+                'deskripsi_rencana' => 'Rencana diperbarui.',
+                'bukti_mitigasi' => UploadedFile::fake()->create('rencana.pdf', 20, 'application/pdf'),
+            ])
+            ->assertRedirect();
+
+        $request = PermintaanPersetujuan::query()->firstOrFail();
+        $supervisor = User::create([
+            'name' => 'Supervisor',
+            'username' => 'supervisor-child-evidence',
+            'email' => 'supervisor-child-evidence@example.test',
+            'password' => 'password',
+            'role' => 'SKKI',
+        ]);
+        $this->actingAs($supervisor)
+            ->post(route('persetujuan.approve', $request))
+            ->assertRedirect();
+
+        Storage::disk('local')->assertExists($progres->bukti_path);
+    }
+
+    public function test_field_user_can_submit_mitigation_progress_for_validation(): void
+    {
+        Storage::fake('local');
+        $risiko = Risiko::factory()->create();
+        $user = $this->userFor($risiko->bidang);
+        $rencana = $risiko->rencana()->create(['deskripsi_rencana' => 'Rencana yang disetujui.']);
+
+        $this->actingAs($user)
+            ->post(route('progres.store', $rencana), [
+                'bulan' => 6,
+                'tahun' => 2026,
+                'deskripsi_progres' => 'Progres bidang.',
+                'bukti_mitigasi' => UploadedFile::fake()->create('progres.pdf', 20, 'application/pdf'),
+            ])
+            ->assertRedirect();
+
+        $progres = $rencana->progres()->firstOrFail();
+        $this->assertSame('pending', $progres->status_verifikasi);
+        Storage::disk('local')->assertExists($progres->bukti_path);
+        $this->actingAs($user)
+            ->get(route('risiko.show', $risiko))
+            ->assertOk()
+            ->assertSee('Progres bidang.')
+            ->assertSee('Menunggu validasi');
+
+        $supervisor = User::create([
+            'name' => 'Supervisor',
+            'username' => 'supervisor-progress-review',
+            'email' => 'supervisor-progress-review@example.test',
+            'password' => 'password',
+            'role' => 'SKKI',
+        ]);
+        $this->actingAs($supervisor)
+            ->post(route('progres.verify', $progres), [
+                'status_verifikasi' => 'rejected',
+                'catatan_verifikasi' => 'Bukti belum memadai.',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('progres_mitigasi', [
+            'id' => $progres->id,
+            'status_verifikasi' => 'rejected',
+            'diverifikasi_oleh' => $supervisor->id,
+            'catatan_verifikasi' => 'Bukti belum memadai.',
+        ]);
     }
 
     public function test_supervisor_can_create_led_and_directly_edit_or_delete_iru_measurements(): void

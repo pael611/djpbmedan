@@ -219,6 +219,15 @@
                             @php($statusPengukuran = $indikator->statusUntuk((float) $pengukuran->nilai_aktual))
                             <div class="mt-2 rounded border p-2">
                                 <span>{{ $pengukuran->tanggal_pengukuran->format('d/m/Y') }}: {{ $pengukuran->nilai_aktual }} ({{ $statusPengukuran }})</span>
+                                @if($pengukuran->jenis_pegawai_perbaikan || $pengukuran->jumlah_pegawai_perbaikan)
+                                    <p class="mt-1 text-slate-600">
+                                        Perbaikan IRU: {{ $pengukuran->jenis_pegawai_perbaikan ?: 'Jenis pegawai tidak diisi' }}
+                                        · {{ $pengukuran->jumlah_pegawai_perbaikan ?? '—' }} pegawai
+                                    </p>
+                                @endif
+                                @if($pengukuran->catatan_evaluasi)
+                                    <p class="mt-1 text-slate-600">Evaluasi setelah perbaikan: {{ $pengukuran->catatan_evaluasi }}</p>
+                                @endif
                                 <details class="mt-1">
                                     <summary class="cursor-pointer text-sky-800">{{ auth()->user()->isPrivileged() ? 'Ubah nilai' : 'Ajukan perubahan nilai' }}</summary>
                                     <form method="POST" action="{{ route('pemantauan-iru.update', $pengukuran) }}" class="mt-2 grid gap-2 md:grid-cols-4">
@@ -227,7 +236,10 @@
                                         <input type="hidden" name="tahun" value="{{ $pengukuran->tanggal_pengukuran->year }}">
                                                         <label>Tanggal<input type="date" name="tanggal_pengukuran" value="{{ $pengukuran->tanggal_pengukuran->toDateString() }}" onchange="const tanggal = new Date(this.value + 'T00:00:00'); this.form.elements.triwulan.value = Math.ceil((tanggal.getMonth() + 1) / 3); this.form.elements.tahun.value = tanggal.getFullYear();" required class="mt-1 w-full rounded border px-2 py-1"></label>
                                         <label>Nilai aktual<input type="number" step="any" name="nilai_aktual" value="{{ $pengukuran->nilai_aktual }}" required class="mt-1 w-full rounded border px-2 py-1"></label>
-                                        <label class="md:col-span-2">Catatan<textarea name="catatan" rows="1" class="mt-1 w-full rounded border px-2 py-1">{{ $pengukuran->catatan }}</textarea></label>
+                                                        <label>Jenis pegawai perbaikan<input name="jenis_pegawai_perbaikan" maxlength="150" value="{{ $pengukuran->jenis_pegawai_perbaikan }}" placeholder="Contoh: Analis, operator" class="mt-1 w-full rounded border px-2 py-1"></label>
+                                                        <label>Jumlah pegawai<input type="number" name="jumlah_pegawai_perbaikan" min="1" max="65535" value="{{ $pengukuran->jumlah_pegawai_perbaikan }}" class="mt-1 w-full rounded border px-2 py-1"></label>
+                                                        <label class="md:col-span-2">Catatan<textarea name="catatan" rows="1" class="mt-1 w-full rounded border px-2 py-1">{{ $pengukuran->catatan }}</textarea></label>
+                                                        <label class="md:col-span-4">Evaluasi setelah perbaikan<textarea name="catatan_evaluasi" rows="2" class="mt-1 w-full rounded border px-2 py-1">{{ $pengukuran->catatan_evaluasi }}</textarea></label>
                                         <button class="justify-self-start rounded bg-sky-700 px-3 py-1 text-white">Simpan</button>
                                     </form>
                                 </details>
@@ -247,7 +259,10 @@
                         <input type="hidden" name="tahun" value="{{ $tahunEvaluasi }}">
                         <label>Tanggal pengukuran<input type="date" name="tanggal_pengukuran" min="{{ $awalPeriode->toDateString() }}" max="{{ min($akhirPeriode->toDateString(), now()->toDateString()) }}" required class="mt-1 border rounded px-2 py-1.5 w-full"></label>
                         <label>Nilai aktual<input type="number" step="any" name="nilai_aktual" required class="mt-1 border rounded px-2 py-1.5 w-full"></label>
+                        <label>Jenis pegawai perbaikan<input name="jenis_pegawai_perbaikan" maxlength="150" placeholder="Contoh: Analis, operator" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
+                        <label>Jumlah pegawai<input type="number" name="jumlah_pegawai_perbaikan" min="1" max="65535" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
                         <label class="md:col-span-2">Catatan<textarea name="catatan" rows="2" class="mt-1 border rounded px-2 py-1.5 w-full"></textarea></label>
+                        <label class="md:col-span-4">Evaluasi setelah perbaikan<textarea name="catatan_evaluasi" rows="2" class="mt-1 border rounded px-2 py-1.5 w-full"></textarea></label>
                         <button class="md:col-span-4 justify-self-start rounded bg-sky-700 px-3 py-1.5 text-white">Simpan nilai</button>
                     </form>
                 </details>
@@ -551,17 +566,41 @@
 
 @forelse($risiko->rencana as $rencana)
 <div class="bg-white rounded-lg shadow p-5 mb-4">
+    <div class="mb-3 flex flex-wrap items-center gap-2 text-sm">
+        <span class="font-semibold">Rencana #{{ $rencana->id }}</span>
+        <span @class([
+            'rounded-full px-2 py-1 text-xs font-semibold',
+            'bg-amber-100 text-amber-900' => $rencana->status_verifikasi === 'pending',
+            'bg-emerald-100 text-emerald-800' => $rencana->status_verifikasi === 'approved',
+            'bg-red-100 text-red-800' => $rencana->status_verifikasi === 'rejected',
+        ])>{{ ['pending' => 'Menunggu validasi', 'approved' => 'Terverifikasi', 'rejected' => 'Ditolak'][$rencana->status_verifikasi] ?? 'Belum divalidasi' }}</span>
+        @if($rencana->bukti_path)
+            <a class="text-blue-700 underline" href="{{ route('rencana.evidence', $rencana) }}">Lihat bukti rencana</a>
+        @endif
+    </div>
+    @if($rencana->catatan_verifikasi)
+        <p class="mb-3 text-xs text-slate-600">Catatan validasi: {{ $rencana->catatan_verifikasi }}</p>
+    @endif
     <div class="flex items-start justify-between gap-3">
-        <form method="POST" action="{{ route('rencana.update', $rencana) }}" class="flex-1 flex gap-2">
+        <form method="POST" action="{{ route('rencana.update', $rencana) }}" enctype="multipart/form-data" class="flex-1 grid gap-2 md:grid-cols-2">
             @csrf @method('PUT')
-            <textarea name="deskripsi_rencana" rows="2" class="border rounded px-2 py-1 w-full text-sm">{{ $rencana->deskripsi_rencana }}</textarea>
-            <button class="border rounded px-3 text-sm">{{ auth()->user()->isPrivileged() ? 'Simpan' : 'Ajukan ubah' }}</button>
+            <textarea name="deskripsi_rencana" rows="2" required class="border rounded px-2 py-1 w-full text-sm md:col-span-2">{{ $rencana->deskripsi_rencana }}</textarea>
+            <input type="file" name="bukti_mitigasi" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" @required(! auth()->user()->isPrivileged()) class="rounded border px-2 py-1 text-sm">
+            <button class="justify-self-start rounded border px-3 text-sm">{{ auth()->user()->isPrivileged() ? 'Simpan' : 'Ajukan ubah' }}</button>
         </form>
         <form method="POST" action="{{ route('rencana.destroy', $rencana) }}" onsubmit="return confirm('Hapus rencana ini?')">
             @csrf @method('DELETE')
             <button class="text-red-700 text-sm">{{ auth()->user()->isPrivileged() ? 'Hapus' : 'Ajukan hapus' }}</button>
         </form>
     </div>
+    @if(auth()->user()->isPrivileged() && $rencana->status_verifikasi === 'pending')
+        <form method="POST" action="{{ route('rencana.verify', $rencana) }}" class="mt-3 flex flex-wrap items-end gap-2 text-sm">
+            @csrf
+            <label class="min-w-64 flex-1">Catatan validasi<input name="catatan_verifikasi" maxlength="2000" class="mt-1 w-full rounded border px-2 py-1"></label>
+            <button name="status_verifikasi" value="approved" class="rounded bg-emerald-700 px-3 py-1.5 text-white">Sahkan rencana</button>
+            <button name="status_verifikasi" value="rejected" class="rounded bg-red-700 px-3 py-1.5 text-white">Tolak rencana</button>
+        </form>
+    @endif
 
     <table class="w-full text-sm mt-4">
         <thead class="bg-slate-50 text-left">
@@ -573,7 +612,18 @@
                 <td class="p-2 whitespace-nowrap">{{ $bulan[$p->bulan] }} {{ $p->tahun }}</td>
                 <td class="p-2">{{ $p->deskripsi_progres }}</td>
                 <td class="p-2">
-                    @if($p->file_bukti)<a class="text-blue-700 hover:underline" target="_blank" href="{{ Storage::url($p->file_bukti) }}">Lihat</a>@else — @endif
+                    @if($p->bukti_path || $p->file_bukti)<a class="text-blue-700 hover:underline" href="{{ route('progres.evidence', $p) }}">Lihat</a>@else — @endif
+                    <div class="mt-1">
+                        <span @class([
+                            'rounded-full px-2 py-1 text-xs font-semibold',
+                            'bg-amber-100 text-amber-900' => $p->status_verifikasi === 'pending',
+                            'bg-emerald-100 text-emerald-800' => $p->status_verifikasi === 'approved',
+                            'bg-red-100 text-red-800' => $p->status_verifikasi === 'rejected',
+                        ])>{{ ['pending' => 'Menunggu validasi', 'approved' => 'Terverifikasi', 'rejected' => 'Ditolak'][$p->status_verifikasi] ?? 'Belum divalidasi' }}</span>
+                    </div>
+                    @if($p->catatan_verifikasi)
+                        <p class="mt-1 text-xs text-slate-600">{{ $p->catatan_verifikasi }}</p>
+                    @endif
                 </td>
                 <td class="p-2">
                     <details>
@@ -583,7 +633,7 @@
                             <input type="number" name="bulan" min="1" max="12" value="{{ $p->bulan }}" required class="rounded border px-2 py-1">
                             <input type="number" name="tahun" min="2020" max="2100" value="{{ $p->tahun }}" required class="rounded border px-2 py-1">
                             <textarea name="deskripsi_progres" rows="2" required class="md:col-span-2 rounded border px-2 py-1">{{ $p->deskripsi_progres }}</textarea>
-                            <input type="file" name="file_bukti" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" class="md:col-span-2 rounded border px-2 py-1">
+                            <input type="file" name="bukti_mitigasi" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" @required(! auth()->user()->isPrivileged()) class="md:col-span-2 rounded border px-2 py-1">
                             <button class="justify-self-start rounded bg-sky-700 px-3 py-1.5 text-white">Simpan</button>
                         </form>
                     </details>
@@ -592,13 +642,24 @@
                     </form>
                 </td>
             </tr>
+            @if(auth()->user()->isPrivileged() && $p->status_verifikasi === 'pending')
+                <tr class="border-t">
+                    <td colspan="4" class="p-2">
+                        <form method="POST" action="{{ route('progres.verify', $p) }}" class="flex flex-wrap items-end gap-2 text-sm">
+                            @csrf
+                            <label class="min-w-64 flex-1">Catatan validasi<input name="catatan_verifikasi" maxlength="2000" class="mt-1 w-full rounded border px-2 py-1"></label>
+                            <button name="status_verifikasi" value="approved" class="rounded bg-emerald-700 px-3 py-1.5 text-white">Sahkan progres</button>
+                            <button name="status_verifikasi" value="rejected" class="rounded bg-red-700 px-3 py-1.5 text-white">Tolak progres</button>
+                        </form>
+                    </td>
+                </tr>
+            @endif
         @empty
             <tr><td colspan="4" class="p-3 text-slate-400 text-center">Belum ada progres.</td></tr>
         @endforelse
         </tbody>
     </table>
 
-    @if(auth()->user()->isPrivileged())
     <details class="mt-4">
         <summary class="cursor-pointer text-sm text-blue-700">+ Tambah progres</summary>
         <form method="POST" action="{{ route('progres.store', $rencana) }}" enctype="multipart/form-data" class="grid md:grid-cols-4 gap-3 mt-3 text-sm">
@@ -607,22 +668,20 @@
                 @foreach($bulan as $n => $nama)<option value="{{ $n }}" @selected(now()->month == $n)>{{ $nama }}</option>@endforeach
             </select>
             <input type="number" name="tahun" value="{{ now()->year }}" class="border rounded px-2 py-1" required>
-            <input type="file" name="file_bukti" class="md:col-span-2 border rounded px-2 py-1">
+            <input type="file" name="bukti_mitigasi" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" class="md:col-span-2 border rounded px-2 py-1">
             <textarea name="deskripsi_progres" rows="2" placeholder="Deskripsi progres" required class="md:col-span-3 border rounded px-2 py-1"></textarea>
             <button class="bg-slate-900 text-white rounded px-3">Simpan</button>
         </form>
     </details>
-    @endif
 </div>
 @empty
     <p class="text-sm text-slate-500 mb-4">Belum ada rencana mitigasi.</p>
 @endforelse
 
-@if(auth()->user()->isPrivileged())
-<form method="POST" action="{{ route('rencana.store', $risiko) }}" class="bg-white rounded-lg shadow p-4 flex gap-2">
+<form method="POST" action="{{ route('rencana.store', $risiko) }}" enctype="multipart/form-data" class="bg-white rounded-lg shadow p-4 grid gap-2 md:grid-cols-2">
     @csrf
-    <textarea name="deskripsi_rencana" rows="2" required placeholder="Tambah rencana mitigasi baru…" class="border rounded px-2 py-1 w-full text-sm"></textarea>
-    <button class="bg-slate-900 text-white rounded px-4 text-sm">Tambah</button>
+    <textarea name="deskripsi_rencana" rows="2" required placeholder="Tambah rencana mitigasi baru…" class="border rounded px-2 py-1 w-full text-sm md:col-span-2"></textarea>
+    <input type="file" name="bukti_mitigasi" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" class="rounded border px-2 py-1 text-sm">
+    <button class="justify-self-start bg-slate-900 text-white rounded px-4 text-sm">Tambah rencana</button>
 </form>
-@endif
 @endsection

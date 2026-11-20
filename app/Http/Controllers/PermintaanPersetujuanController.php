@@ -28,8 +28,18 @@ class PermintaanPersetujuanController extends Controller
             ->with(['risiko.bidang', 'user'])
             ->oldest('terjadi_pada')
             ->paginate(20, ['*'], 'bukti_page');
+        $pendingPlans = RencanaMitigasi::query()
+            ->where('status_verifikasi', 'pending')
+            ->with(['risiko.bidang', 'user'])
+            ->oldest()
+            ->paginate(20, ['*'], 'rencana_page');
+        $pendingProgress = ProgresMitigasi::query()
+            ->where('status_verifikasi', 'pending')
+            ->with(['rencana.risiko.bidang', 'user'])
+            ->oldest()
+            ->paginate(20, ['*'], 'progres_page');
 
-        return view('persetujuan.index', compact('permintaan', 'pendingEvidence'));
+        return view('persetujuan.index', compact('permintaan', 'pendingEvidence', 'pendingPlans', 'pendingProgress'));
     }
 
     public function approve(Request $request, PermintaanPersetujuan $permintaanPersetujuan): RedirectResponse
@@ -45,12 +55,36 @@ class PermintaanPersetujuanController extends Controller
             abort_unless($permintaanPersetujuan->payload['bukti_path'] ?? null, 422);
         }
 
-        $fileBuktiLama = $subject instanceof KejadianLed ? $subject->bukti_path : null;
-        $fileProgresLama = $subject instanceof RencanaMitigasi
-            ? $subject->progres()->pluck('file_bukti')->filter()->all()
-            : ($subject instanceof ProgresMitigasi && $subject->file_bukti
-                ? [$subject->file_bukti]
-                : []);
+        $localFilesLama = [];
+        $publicFilesLama = [];
+        $localFileSubjectLama = null;
+        $publicFileSubjectLama = null;
+        if ($subject instanceof KejadianLed && $subject->bukti_path) {
+            $localFileSubjectLama = $subject->bukti_path;
+            $localFilesLama[] = $subject->bukti_path;
+        } elseif ($subject instanceof RencanaMitigasi) {
+            if ($subject->bukti_path) {
+                $localFileSubjectLama = $subject->bukti_path;
+                $localFilesLama[] = $subject->bukti_path;
+            }
+            foreach ($subject->progres as $progres) {
+                if ($progres->bukti_path) {
+                    $localFilesLama[] = $progres->bukti_path;
+                }
+                if ($progres->file_bukti) {
+                    $publicFilesLama[] = $progres->file_bukti;
+                }
+            }
+        } elseif ($subject instanceof ProgresMitigasi) {
+            if ($subject->bukti_path) {
+                $localFileSubjectLama = $subject->bukti_path;
+                $localFilesLama[] = $subject->bukti_path;
+            }
+            if ($subject->file_bukti) {
+                $publicFileSubjectLama = $subject->file_bukti;
+                $publicFilesLama[] = $subject->file_bukti;
+            }
+        }
 
         DB::transaction(function () use ($request, $permintaanPersetujuan): void {
             $lockedRequest = PermintaanPersetujuan::query()
@@ -77,6 +111,11 @@ class PermintaanPersetujuanController extends Controller
                     $payload['diverifikasi_oleh'] = null;
                     $payload['diverifikasi_pada'] = null;
                     $payload['catatan_verifikasi'] = null;
+                } elseif ($lockedSubject instanceof RencanaMitigasi || $lockedSubject instanceof ProgresMitigasi) {
+                    $payload['status_verifikasi'] = 'approved';
+                    $payload['diverifikasi_oleh'] = $request->user()->id;
+                    $payload['diverifikasi_pada'] = now();
+                    $payload['catatan_verifikasi'] = null;
                 }
 
                 $lockedSubject->update($payload);
@@ -93,25 +132,25 @@ class PermintaanPersetujuanController extends Controller
             ]);
         });
 
-        if ($subject instanceof KejadianLed
-            && $permintaanPersetujuan->action === 'update'
-            && $fileBuktiLama
-            && $subject->fresh()?->bukti_path !== $fileBuktiLama) {
-            Storage::disk('local')->delete($fileBuktiLama);
-        }
-
-        if ($subject instanceof KejadianLed && $permintaanPersetujuan->action === 'delete' && $fileBuktiLama) {
-            Storage::disk('local')->delete($fileBuktiLama);
-        }
-
-        if ($subject instanceof ProgresMitigasi) {
-            $fileBuktiBaru = $subject->fresh()?->file_bukti;
-            if ($permintaanPersetujuan->action === 'delete'
-                || $fileProgresLama !== [$fileBuktiBaru]) {
-                Storage::disk('public')->delete($fileProgresLama);
+        if ($permintaanPersetujuan->action === 'delete') {
+            Storage::disk('local')->delete($localFilesLama);
+            Storage::disk('public')->delete($publicFilesLama);
+        } elseif ($permintaanPersetujuan->action === 'update') {
+            if ($subject instanceof KejadianLed && $localFileSubjectLama
+                && $subject->fresh()?->bukti_path !== $localFileSubjectLama) {
+                Storage::disk('local')->delete($localFileSubjectLama);
+            } elseif ($subject instanceof RencanaMitigasi && $localFileSubjectLama
+                && $subject->fresh()?->bukti_path !== $localFileSubjectLama) {
+                Storage::disk('local')->delete($localFileSubjectLama);
+            } elseif ($subject instanceof ProgresMitigasi) {
+                $fresh = $subject->fresh();
+                if ($localFileSubjectLama && $fresh?->bukti_path !== $localFileSubjectLama) {
+                    Storage::disk('local')->delete($localFileSubjectLama);
+                }
+                if ($publicFileSubjectLama && $fresh?->file_bukti !== $publicFileSubjectLama) {
+                    Storage::disk('public')->delete($publicFileSubjectLama);
+                }
             }
-        } elseif ($subject instanceof RencanaMitigasi && $permintaanPersetujuan->action === 'delete') {
-            Storage::disk('public')->delete($fileProgresLama);
         }
 
         return back()->with('success', 'Permintaan perubahan telah disetujui.');
@@ -141,9 +180,8 @@ class PermintaanPersetujuanController extends Controller
         });
 
         $subject = $permintaanPersetujuan->subject();
-        if ($subject instanceof KejadianLed
-            && isset($permintaanPersetujuan->payload['bukti_path'])
-            && $permintaanPersetujuan->payload['bukti_path'] !== $subject->bukti_path) {
+        if (isset($permintaanPersetujuan->payload['bukti_path'])
+            && $permintaanPersetujuan->payload['bukti_path'] !== $subject?->bukti_path) {
             Storage::disk('local')->delete($permintaanPersetujuan->payload['bukti_path']);
         }
         if ($subject instanceof ProgresMitigasi
@@ -153,6 +191,20 @@ class PermintaanPersetujuanController extends Controller
         }
 
         return back()->with('success', 'Permintaan perubahan ditolak.');
+    }
+
+    public function evidence(Request $request, PermintaanPersetujuan $permintaanPersetujuan)
+    {
+        abort_unless(
+            $request->user()->isPrivileged()
+                || (int) $permintaanPersetujuan->requested_by === (int) $request->user()->id,
+            403
+        );
+        abort_unless($permintaanPersetujuan->action === 'update', 404);
+        $path = $permintaanPersetujuan->payload['bukti_path'] ?? null;
+        abort_unless(is_string($path), 404);
+
+        return Storage::disk('local')->download($path);
     }
 
     private function ensurePending(PermintaanPersetujuan $permintaan): void

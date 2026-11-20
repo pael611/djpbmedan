@@ -114,12 +114,30 @@
                 </td>
             @endif
             @if($b['first'])
-                <td class="p-2 border" rowspan="{{ $b['span'] }}">{{ $b['rn']->deskripsi_rencana ?? '—' }}</td>
+                <td class="p-2 border" rowspan="{{ $b['span'] }}">
+                    {{ $b['rn']->deskripsi_rencana ?? '—' }}
+                    @if($b['rn'])
+                        <div class="mt-1 text-xs">
+                            {{ ['pending' => 'Menunggu validasi', 'approved' => 'Terverifikasi', 'rejected' => 'Ditolak'][$b['rn']->status_verifikasi] ?? 'Belum divalidasi' }}
+                            @if($b['rn']->bukti_path)
+                                · <a class="text-blue-700 hover:underline" href="{{ route('rencana.evidence', $b['rn']) }}">Bukti</a>
+                            @endif
+                        </div>
+                    @endif
             @endif
             <td class="p-2 border whitespace-nowrap">{{ $b['p'] ? $bulan[$b['p']->bulan].' '.$b['p']->tahun : '—' }}</td>
-            <td class="p-2 border">{{ $b['p']->deskripsi_progres ?? '—' }}</td>
+                <td class="p-2 border">
+                    {{ $b['p']->deskripsi_progres ?? '—' }}
+                    @if($b['p'])
+                        <div class="mt-1 text-xs">{{ ['pending' => 'Menunggu validasi', 'approved' => 'Terverifikasi', 'rejected' => 'Ditolak'][$b['p']->status_verifikasi] ?? 'Belum divalidasi' }}</div>
+                    @endif
+                </td>
             <td class="p-2 border">
-                @if($b['p'] && $b['p']->file_bukti)<a class="text-blue-700 hover:underline" target="_blank" href="{{ Storage::url($b['p']->file_bukti) }}">Lihat</a>@else — @endif
+                    @if($b['p'] && ($b['p']->bukti_path || $b['p']->file_bukti))
+                        <a class="text-blue-700 hover:underline" href="{{ route('progres.evidence', $b['p']) }}">Lihat</a>
+                    @else
+                        —
+                    @endif
             </td>
         </tr>
         @endforeach

@@ -26,6 +26,8 @@ Route::middleware('auth')->group(function () {
         ->name('persetujuan.approve');
     Route::post('/persetujuan-perubahan/{permintaanPersetujuan}/reject', [PermintaanPersetujuanController::class, 'reject'])
         ->name('persetujuan.reject');
+    Route::get('/persetujuan-perubahan/{permintaanPersetujuan}/bukti', [PermintaanPersetujuanController::class, 'evidence'])
+        ->name('persetujuan.evidence');
 
     // Dashboard Master: hanya ADMIN & SKKI (alias middleware: role.dashboard)
     Route::get('/dashboard', [DashboardController::class, 'index'])
@@ -44,9 +46,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/risiko/{risiko}/rencana', [MitigasiController::class, 'storeRencana'])->name('rencana.store');
     Route::put('/rencana/{rencana}', [MitigasiController::class, 'updateRencana'])->name('rencana.update');
     Route::delete('/rencana/{rencana}', [MitigasiController::class, 'destroyRencana'])->name('rencana.destroy');
+    Route::get('/rencana/{rencana}/bukti', [MitigasiController::class, 'evidenceRencana'])->name('rencana.evidence');
+    Route::post('/rencana/{rencana}/verifikasi', [MitigasiController::class, 'verifyRencana'])->name('rencana.verify');
     Route::post('/rencana/{rencana}/progres', [MitigasiController::class, 'storeProgres'])->name('progres.store');
     Route::put('/progres/{progres}', [MitigasiController::class, 'updateProgres'])->name('progres.update');
     Route::delete('/progres/{progres}', [MitigasiController::class, 'destroyProgres'])->name('progres.destroy');
+    Route::get('/progres/{progres}/bukti', [MitigasiController::class, 'evidenceProgres'])->name('progres.evidence');
+    Route::post('/progres/{progres}/verifikasi', [MitigasiController::class, 'verifyProgres'])->name('progres.verify');
     Route::post('/risiko/{risiko}/rekomendasi', [RekomendasiRisikoController::class, 'store'])
         ->name('rekomendasi.store');
     Route::put('/rekomendasi-risiko/{rekomendasiRisiko}', [RekomendasiRisikoController::class, 'update'])

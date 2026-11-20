@@ -20,6 +20,9 @@ class PemantauanIru extends Model
         'tanggal_pengukuran',
         'nilai_aktual',
         'catatan',
+        'jenis_pegawai_perbaikan',
+        'jumlah_pegawai_perbaikan',
+        'catatan_evaluasi',
     ];
 
     protected function casts(): array

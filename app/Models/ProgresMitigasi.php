@@ -10,13 +10,25 @@ class ProgresMitigasi extends Model
 {
     use HitungMatriksRisiko;
 
+    protected $attributes = [
+        'status_verifikasi' => 'approved',
+    ];
+
     protected $table = 'progres_mitigasi';
 
     protected $fillable = [
-        'rencana_id', 'deskripsi_progres',
+        'rencana_id', 'user_id', 'deskripsi_progres',
         'rekomendasi_level_kemungkinan', 'rekomendasi_level_dampak', 'rekomendasi_besaran',
-        'bulan', 'tahun', 'file_bukti',
+        'bulan', 'tahun', 'file_bukti', 'bukti_path',
+        'status_verifikasi', 'diverifikasi_oleh', 'diverifikasi_pada', 'catatan_verifikasi',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'diverifikasi_pada' => 'datetime',
+        ];
+    }
 
     protected static function booted(): void
     {
@@ -35,6 +47,16 @@ class ProgresMitigasi extends Model
     public function rencana(): BelongsTo
     {
         return $this->belongsTo(RencanaMitigasi::class, 'rencana_id');
+    }
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function diverifikasiOleh(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'diverifikasi_oleh');
     }
 
     public function getKlasifikasiRekomendasiAttribute(): ?array
