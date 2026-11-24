@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Bidang;
+use App\Models\IndikatorRisiko;
 use App\Models\ProgresMitigasi;
 use App\Models\Risiko;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -113,6 +114,93 @@ class ExportController extends Controller
         $filename = Str::slug(
             "laporan-risiko-{$bidang->kode}-{$filters['bulan_aktual']}-{$actualYear}"
         ).'.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /** Cetak PDF Manual IRU untuk satu indikator IRU tertentu. */
+    public function exportManualIruPdf(Request $request, IndikatorRisiko $indikatorRisiko): Response
+    {
+        $risiko = $indikatorRisiko->risiko;
+        abort_unless($risiko->bolehDiaksesOleh($request->user()), 403);
+
+        $validated = $request->validate([
+            'tahun' => ['nullable', 'integer', 'between:2020,2100'],
+        ]);
+        $tahun = (int) ($validated['tahun'] ?? now()->year);
+
+        $indikatorRisiko->load([
+            'risiko.bidang',
+            'pemantauanIru' => fn (HasMany $query) => $query
+                ->whereBetween('tanggal_pengukuran', [
+                    ($tahun - 2).'-01-01',
+                    $tahun.'-12-31',
+                ])
+                ->orderByDesc('tanggal_pengukuran'),
+        ]);
+
+        $pdf = Pdf::loadView('exports.manual_iru_pdf', [
+            'items' => [[
+                'risiko' => $indikatorRisiko->risiko,
+                'indikator' => $indikatorRisiko,
+                'riwayat' => $indikatorRisiko->riwayatTriwulanan($tahun),
+            ]],
+            'tahun' => $tahun,
+            'kejadianDipilih' => $indikatorRisiko->risiko->kejadian_risiko,
+        ])->setPaper('a4', 'portrait');
+
+        $filename = Str::slug("manual-iru-{$indikatorRisiko->nama_indikator}-{$tahun}").'.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    /** Cetak PDF Manual IRU untuk seluruh indikator pada kejadian risiko yang dipilih. */
+    public function exportManualIruByKejadianPdf(Request $request): Response
+    {
+        $validated = $request->validate([
+            'kejadian_risiko' => ['required', 'string', Rule::in(Risiko::DAFTAR_KEJADIAN_RISIKO)],
+            'tahun' => ['nullable', 'integer', 'between:2020,2100'],
+            'bidang_id' => ['nullable', 'integer', 'exists:bidang,id'],
+        ]);
+
+        $tahun = (int) ($validated['tahun'] ?? now()->year);
+        $user = $request->user();
+
+        $indikatorList = IndikatorRisiko::query()
+            ->with([
+                'risiko.bidang',
+                'pemantauanIru' => fn (HasMany $query) => $query
+                    ->whereBetween('tanggal_pengukuran', [
+                        ($tahun - 2).'-01-01',
+                        $tahun.'-12-31',
+                    ])
+                    ->orderByDesc('tanggal_pengukuran'),
+            ])
+            ->whereHas('risiko', function (Builder $query) use ($validated, $user): void {
+                $query->where('kejadian_risiko', $validated['kejadian_risiko']);
+                if (! $user->isPrivileged()) {
+                    $query->where('bidang_id', $user->bidang_id);
+                } elseif (! empty($validated['bidang_id'])) {
+                    $query->where('bidang_id', $validated['bidang_id']);
+                }
+            })
+            ->orderBy('id')
+            ->get();
+
+        $items = $indikatorList->map(fn (IndikatorRisiko $indikator): array => [
+            'risiko' => $indikator->risiko,
+            'indikator' => $indikator,
+            'riwayat' => $indikator->riwayatTriwulanan($tahun),
+        ])->all();
+
+        $pdf = Pdf::loadView('exports.manual_iru_pdf', [
+            'items' => $items,
+            'tahun' => $tahun,
+            'kejadianDipilih' => $validated['kejadian_risiko'],
+        ])->setPaper('a4', 'portrait');
+
+        $nomorKejadian = array_search($validated['kejadian_risiko'], Risiko::DAFTAR_KEJADIAN_RISIKO, true);
+        $filename = Str::slug("manual-iru-kejadian-{$nomorKejadian}-{$tahun}").'.pdf';
 
         return $pdf->download($filename);
     }

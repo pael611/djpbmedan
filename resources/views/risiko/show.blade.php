@@ -4,7 +4,7 @@
 @php $bulan = [1=>'Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des']; @endphp
 
 <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
-    <h1 class="text-2xl font-bold">Risiko #{{ $risiko->id }} <span class="text-base font-normal text-slate-500">— {{ $risiko->bidang->nama }}, TW {{ $risiko->triwulan }}/{{ $risiko->tahun }}</span></h1>
+    <h1 class="text-2xl font-bold">Risiko ID #{{ $risiko->id }} <span class="text-base font-normal text-slate-500">— {{ $risiko->bidang->nama }}, TW {{ $risiko->triwulan }}/{{ $risiko->tahun }}</span></h1>
     <div class="flex gap-2">
         <a href="{{ route('risiko.edit', $risiko) }}" class="border rounded px-3 py-1.5 text-sm bg-white">{{ auth()->user()->isPrivileged() ? 'Ubah' : 'Ajukan ubah' }}</a>
         <form method="POST" action="{{ route('risiko.destroy', $risiko) }}" onsubmit="return confirm('Hapus kejadian risiko beserta mitigasinya?')">
@@ -107,24 +107,38 @@
             <h2 class="text-lg font-semibold">Indikator Risiko Utama (IRU)</h2>
             <p class="text-sm text-slate-500">BM = Batas Aman, BA = Batas Atas, BB = Batas Bawah. Status memakai nilai terbaru dalam enam bulan sampai triwulan evaluasi.</p>
         </div>
+        @if(in_array($risiko->kejadian_risiko, \App\Models\Risiko::DAFTAR_KEJADIAN_RISIKO, true))
+            <a href="{{ route('risiko.manual-iru-pdf', ['kejadian_risiko' => $risiko->kejadian_risiko, 'tahun' => $tahunEvaluasi, 'bidang_id' => $risiko->bidang_id]) }}"
+               class="rounded bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-800">
+                Cetak PDF Manual IRU (Kejadian Ini)
+            </a>
+        @endif
         <details class="w-full mt-2">
             <summary class="cursor-pointer text-sm font-medium text-sky-800">+ Tambah indikator IRU</summary>
-            <form method="POST" action="{{ route('indikator-iru.store', $risiko) }}" class="grid md:grid-cols-3 gap-3 mt-3 rounded-md border p-3 text-sm">
+            <form method="POST" action="{{ route('indikator-iru.store', $risiko) }}" data-iru-form class="grid md:grid-cols-3 gap-3 mt-3 rounded-md border p-3 text-sm">
                 @csrf
                 <label>Nama indikator<input name="nama_indikator" required maxlength="150" value="{{ old('nama_indikator') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
                 <label>Satuan<input name="satuan" required maxlength="50" value="{{ old('satuan') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
-                <label>Polarisasi
-                    <select name="polarisasi" required class="mt-1 border rounded px-2 py-1.5 w-full">
-                        <option value="minimize" @selected(old('polarisasi') === 'minimize')>Minimize</option>
-                        <option value="maximize" @selected(old('polarisasi') === 'maximize')>Maximize</option>
-                        <option value="stabilize" @selected(old('polarisasi') === 'stabilize')>Stabilize</option>
+                <label>Jenis konsolidasi periode
+                    <select name="jenis_konsolidasi" class="mt-1 border rounded px-2 py-1.5 w-full">
+                        @foreach(\App\Models\IndikatorRisiko::JENIS_KONSOLIDASI as $kodeKonsolidasi => $labelKonsolidasi)
+                            <option value="{{ $kodeKonsolidasi }}" @selected(old('jenis_konsolidasi', 'tidak_ada') === $kodeKonsolidasi)>{{ $labelKonsolidasi }}</option>
+                        @endforeach
                     </select>
                 </label>
-                <label>BM · Batas Aman (Minimize/Maximize)<input type="number" step="any" name="batas_aman" value="{{ old('batas_aman') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
-                <label>BM bawah · Batas Aman B (Stabilize)<input type="number" step="any" name="batas_aman_bawah" value="{{ old('batas_aman_bawah') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
-                <label>BM atas · Batas Aman A (Stabilize)<input type="number" step="any" name="batas_aman_atas" value="{{ old('batas_aman_atas') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
-                <label>BA · Batas Atas<input type="number" step="any" name="batas_atas" value="{{ old('batas_atas') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
-                <label>BB · Batas Bawah<input type="number" step="any" name="batas_bawah" value="{{ old('batas_bawah') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
+                <label class="md:col-span-3">Jenis Polarisasi IRU
+                    <select name="polarisasi" required data-polarisasi-select class="mt-1 border rounded px-2 py-1.5 w-full">
+                        <option value="minimize" @selected(old('polarisasi', 'minimize') === 'minimize')>Minimize — Batas Aman &amp; Batas Atas (nilai aktual diharapkan semakin rendah)</option>
+                        <option value="maximize" @selected(old('polarisasi') === 'maximize')>Maximize — Batas Aman &amp; Batas Bawah (nilai aktual diharapkan semakin tinggi)</option>
+                        <option value="stabilize" @selected(old('polarisasi') === 'stabilize')>Stabilize — Batas Aman (A &amp; B), Batas Atas &amp; Batas Bawah (nilai aktual pada rentang aman)</option>
+                    </select>
+                    <span data-polarisasi-hint class="mt-1 block text-xs text-slate-500"></span>
+                </label>
+                <label data-iru-field="minimize,maximize">BM · Batas Aman<input type="number" step="any" name="batas_aman" value="{{ old('batas_aman') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
+                <label data-iru-field="stabilize">BM atas · Batas Aman (A)<input type="number" step="any" name="batas_aman_atas" value="{{ old('batas_aman_atas') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
+                <label data-iru-field="stabilize">BM bawah · Batas Aman (B)<input type="number" step="any" name="batas_aman_bawah" value="{{ old('batas_aman_bawah') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
+                <label data-iru-field="minimize,stabilize">BA · Batas Atas<input type="number" step="any" name="batas_atas" value="{{ old('batas_atas') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
+                <label data-iru-field="maximize,stabilize">BB · Batas Bawah<input type="number" step="any" name="batas_bawah" value="{{ old('batas_bawah') }}" class="mt-1 border rounded px-2 py-1.5 w-full"></label>
                 <label>Periode pemantauan
                     <select name="periode_pemantauan" required class="mt-1 border rounded px-2 py-1.5 w-full">
                         <option value="bulanan" @selected(old('periode_pemantauan', 'bulanan') === 'bulanan')>Bulanan (diutamakan)</option>
@@ -151,36 +165,50 @@
                         <h3 class="font-semibold">{{ $indikator->nama_indikator }}</h3>
                         <p class="text-xs text-slate-500">{{ ucfirst($indikator->polarisasi) }} · {{ $indikator->periode_pemantauan }} · Satuan: {{ $indikator->satuan }}</p>
                     </div>
-                    @if($pengukuranTerbaru)
-                        @php($statusIru = $indikator->statusUntuk((float) $pengukuranTerbaru->nilai_aktual))
-                        <span @class([
-                            'rounded-full px-2.5 py-1 text-xs font-semibold',
-                            'bg-green-100 text-green-800' => $statusIru === 'Aman',
-                            'bg-yellow-100 text-yellow-900' => $statusIru === 'Waspada',
-                            'bg-red-100 text-red-800' => $statusIru === 'Awas',
-                        ])>{{ $statusIru }}</span>
-                    @else
-                        <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">Belum ada nilai aktual 6 bulan terakhir</span>
-                    @endif
+                    <div class="flex flex-wrap items-center gap-2">
+                        <a href="{{ route('indikator-iru.manual-pdf', ['indikatorRisiko' => $indikator, 'tahun' => $tahunEvaluasi]) }}"
+                           class="rounded bg-[#005FAC] px-2.5 py-1 text-xs font-semibold text-white hover:bg-[#004b8a]">
+                            Cetak PDF Manual IRU
+                        </a>
+                        @if($pengukuranTerbaru)
+                            @php($statusIru = $indikator->statusUntuk((float) $pengukuranTerbaru->nilai_aktual))
+                            <span @class([
+                                'rounded-full px-2.5 py-1 text-xs font-semibold',
+                                'bg-green-100 text-green-800' => $statusIru === 'Aman',
+                                'bg-yellow-100 text-yellow-900' => $statusIru === 'Waspada',
+                                'bg-red-100 text-red-800' => $statusIru === 'Awas',
+                            ])>{{ $statusIru }}</span>
+                        @else
+                            <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">Belum ada nilai aktual 6 bulan terakhir</span>
+                        @endif
+                    </div>
                 </div>
                 <details class="mt-3">
                     <summary class="cursor-pointer text-sm text-sky-800">{{ auth()->user()->isPrivileged() ? 'Ubah indikator' : 'Ajukan perubahan indikator' }}</summary>
-                    <form method="POST" action="{{ route('indikator-iru.update', $indikator) }}" class="mt-2 grid gap-2 rounded border p-3 text-sm md:grid-cols-3">
+                    <form method="POST" action="{{ route('indikator-iru.update', $indikator) }}" data-iru-form class="mt-2 grid gap-2 rounded border p-3 text-sm md:grid-cols-3">
                         @csrf @method('PUT')
                         <label>Nama indikator<input name="nama_indikator" required maxlength="150" value="{{ $indikator->nama_indikator }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
                         <label>Satuan<input name="satuan" required maxlength="50" value="{{ $indikator->satuan }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
-                        <label>Polarisasi
-                            <select name="polarisasi" required class="mt-1 w-full rounded border px-2 py-1.5">
-                                @foreach(['minimize' => 'Minimize', 'maximize' => 'Maximize', 'stabilize' => 'Stabilize'] as $value => $label)
-                                    <option value="{{ $value }}" @selected($indikator->polarisasi === $value)>{{ $label }}</option>
+                        <label>Jenis konsolidasi periode
+                            <select name="jenis_konsolidasi" class="mt-1 w-full rounded border px-2 py-1.5">
+                                @foreach(\App\Models\IndikatorRisiko::JENIS_KONSOLIDASI as $kodeKonsolidasi => $labelKonsolidasi)
+                                    <option value="{{ $kodeKonsolidasi }}" @selected(($indikator->jenis_konsolidasi ?? 'tidak_ada') === $kodeKonsolidasi)>{{ $labelKonsolidasi }}</option>
                                 @endforeach
                             </select>
                         </label>
-                        <label>BM · Batas Aman<input type="number" step="any" name="batas_aman" value="{{ $indikator->batas_aman }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
-                        <label>BM bawah<input type="number" step="any" name="batas_aman_bawah" value="{{ $indikator->batas_aman_bawah }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
-                        <label>BM atas<input type="number" step="any" name="batas_aman_atas" value="{{ $indikator->batas_aman_atas }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
-                        <label>BA · Batas Atas<input type="number" step="any" name="batas_atas" value="{{ $indikator->batas_atas }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
-                        <label>BB · Batas Bawah<input type="number" step="any" name="batas_bawah" value="{{ $indikator->batas_bawah }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label class="md:col-span-3">Jenis Polarisasi IRU
+                            <select name="polarisasi" required data-polarisasi-select class="mt-1 w-full rounded border px-2 py-1.5">
+                                <option value="minimize" @selected($indikator->polarisasi === 'minimize')>Minimize — Batas Aman &amp; Batas Atas (semakin rendah semakin baik)</option>
+                                <option value="maximize" @selected($indikator->polarisasi === 'maximize')>Maximize — Batas Aman &amp; Batas Bawah (semakin tinggi semakin baik)</option>
+                                <option value="stabilize" @selected($indikator->polarisasi === 'stabilize')>Stabilize — Batas Aman (A &amp; B), Batas Atas &amp; Batas Bawah</option>
+                            </select>
+                            <span data-polarisasi-hint class="mt-1 block text-xs text-slate-500"></span>
+                        </label>
+                        <label data-iru-field="minimize,maximize">BM · Batas Aman<input type="number" step="any" name="batas_aman" value="{{ $indikator->batas_aman }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label data-iru-field="stabilize">BM atas · Batas Aman (A)<input type="number" step="any" name="batas_aman_atas" value="{{ $indikator->batas_aman_atas }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label data-iru-field="stabilize">BM bawah · Batas Aman (B)<input type="number" step="any" name="batas_aman_bawah" value="{{ $indikator->batas_aman_bawah }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label data-iru-field="minimize,stabilize">BA · Batas Atas<input type="number" step="any" name="batas_atas" value="{{ $indikator->batas_atas }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
+                        <label data-iru-field="maximize,stabilize">BB · Batas Bawah<input type="number" step="any" name="batas_bawah" value="{{ $indikator->batas_bawah }}" class="mt-1 w-full rounded border px-2 py-1.5"></label>
                         <label>Periode pemantauan
                             <select name="periode_pemantauan" required class="mt-1 w-full rounded border px-2 py-1.5">
                                 @foreach(['bulanan' => 'Bulanan', 'triwulanan' => 'Triwulanan', 'semesteran' => 'Semesteran'] as $value => $label)
@@ -684,4 +712,42 @@
     <input type="file" name="bukti_mitigasi" required accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" class="rounded border px-2 py-1 text-sm">
     <button class="justify-self-start bg-slate-900 text-white rounded px-4 text-sm">Tambah rencana</button>
 </form>
+
+<script>
+    (function () {
+        const hints = {
+            minimize: 'Polarisasi Minimize: hanya menggunakan Batas Aman (BM) dan Batas Atas (BA). Nilai aktual diharapkan semakin rendah.',
+            maximize: 'Polarisasi Maximize: hanya menggunakan Batas Aman (BM) dan Batas Bawah (BB). Nilai aktual diharapkan semakin tinggi.',
+            stabilize: 'Polarisasi Stabilize: menggunakan Batas Aman (A & B), Batas Atas (BA), dan Batas Bawah (BB). Nilai aktual diharapkan berada dalam rentang aman.'
+        };
+
+        function syncIruForm(form) {
+            const select = form.querySelector('[data-polarisasi-select]');
+            if (!select) return;
+            const mode = select.value;
+            const hintEl = form.querySelector('[data-polarisasi-hint]');
+            if (hintEl) {
+                hintEl.textContent = hints[mode] || '';
+            }
+
+            form.querySelectorAll('[data-iru-field]').forEach((wrapper) => {
+                const allowed = wrapper.getAttribute('data-iru-field').split(',');
+                const visible = allowed.includes(mode);
+                wrapper.classList.toggle('hidden', !visible);
+                wrapper.querySelectorAll('input, select, textarea').forEach((input) => {
+                    input.disabled = !visible;
+                    input.required = visible;
+                });
+            });
+        }
+
+        document.querySelectorAll('[data-iru-form]').forEach((form) => {
+            const select = form.querySelector('[data-polarisasi-select]');
+            if (select) {
+                select.addEventListener('change', () => syncIruForm(form));
+            }
+            syncIruForm(form);
+        });
+    })();
+</script>
 @endsection

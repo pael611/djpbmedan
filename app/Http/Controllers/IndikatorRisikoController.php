@@ -77,6 +77,7 @@ class IndikatorRisikoController extends Controller
             ],
             'definisi' => ['nullable', 'string'],
             'satuan' => ['required', 'string', 'max:50'],
+            'jenis_konsolidasi' => ['nullable', Rule::in(array_keys(IndikatorRisiko::JENIS_KONSOLIDASI))],
             'formula' => ['nullable', 'string'],
             'polarisasi' => ['required', Rule::in(['minimize', 'maximize', 'stabilize'])],
             'batas_aman' => ['nullable', 'decimal:0,4', 'between:-99999999999999.9999,99999999999999.9999', 'required_if:polarisasi,minimize,maximize'],
@@ -120,13 +121,18 @@ class IndikatorRisikoController extends Controller
         });
 
         $data = $validator->validate();
+        $data['jenis_konsolidasi'] = $data['jenis_konsolidasi'] ?? 'tidak_ada';
 
         if ($data['polarisasi'] === 'minimize') {
-            unset($data['batas_aman_bawah'], $data['batas_aman_atas'], $data['batas_bawah']);
+            $data['batas_aman_bawah'] = null;
+            $data['batas_aman_atas'] = null;
+            $data['batas_bawah'] = null;
         } elseif ($data['polarisasi'] === 'maximize') {
-            unset($data['batas_aman_bawah'], $data['batas_aman_atas'], $data['batas_atas']);
+            $data['batas_aman_bawah'] = null;
+            $data['batas_aman_atas'] = null;
+            $data['batas_atas'] = null;
         } else {
-            unset($data['batas_aman']);
+            $data['batas_aman'] = null;
         }
 
         return $data;

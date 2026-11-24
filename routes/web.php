@@ -32,14 +32,18 @@ Route::middleware('auth')->group(function () {
     // Dashboard Master: hanya ADMIN & SKKI (alias middleware: role.dashboard)
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware('role.dashboard')->name('dashboard.index');
+    Route::put('/dashboard/nilai-awal', [DashboardController::class, 'updateNilaiAwal'])
+        ->middleware('role.dashboard')->name('dashboard.nilai-awal.update');
 
     // Dashboard per bidang
     Route::get('/dashboard/bidang', [DashboardController::class, 'bidang'])->name('dashboard.bidang');
 
-    // Manajemen risiko
+    // Manajemen risiko & ekspor PDF
     Route::get('/risiko/laporan', [RisikoController::class, 'laporan'])->name('risiko.laporan');
     Route::get('/risiko/laporan/pdf', [ExportController::class, 'exportRisikoPdf'])
         ->name('risiko.export-pdf');
+    Route::get('/risiko/manual-iru/pdf', [ExportController::class, 'exportManualIruByKejadianPdf'])
+        ->name('risiko.manual-iru-pdf');
     Route::resource('risiko', RisikoController::class)->parameters(['risiko' => 'risiko']);
 
     // Mitigasi
@@ -65,6 +69,8 @@ Route::middleware('auth')->group(function () {
         ->name('indikator-iru.update');
     Route::delete('/indikator-iru/{indikatorRisiko}', [IndikatorRisikoController::class, 'destroy'])
         ->name('indikator-iru.destroy');
+    Route::get('/indikator-iru/{indikatorRisiko}/manual-pdf', [ExportController::class, 'exportManualIruPdf'])
+        ->name('indikator-iru.manual-pdf');
     Route::post('/indikator-iru/{indikatorRisiko}/pemantauan', [PemantauanIruController::class, 'store'])
         ->name('pemantauan-iru.store');
     Route::put('/pemantauan-iru/{pemantauanIru}', [PemantauanIruController::class, 'update'])

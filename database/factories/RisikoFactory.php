@@ -21,7 +21,7 @@ class RisikoFactory extends Factory
         return [
             'bidang_id' => Bidang::factory(),
             'sasaran' => fake()->sentence(),
-            'kejadian_risiko' => fake()->sentence(),
+            'kejadian_risiko' => fake()->randomElement(Risiko::DAFTAR_KEJADIAN_RISIKO),
             'jenis_risiko' => 'downside',
             'level_kemungkinan' => fake()->numberBetween(1, 5),
             'level_dampak' => fake()->numberBetween(1, 5),

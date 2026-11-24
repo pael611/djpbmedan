@@ -18,6 +18,19 @@ class Risiko extends Model
 
     use HitungMatriksRisiko;
 
+    public const DAFTAR_KEJADIAN_RISIKO = [
+        1 => 'Tingginya deviasi antara RPD Halaman III DIPA dengan realisasinya',
+        2 => 'Respon atas pertanyaan/konsultasi dari pengguna layanan tidak tepat waktu',
+        3 => 'Adanya anomali data pada hasil analisis LK BUN sesuai Per-56/PB/2016',
+        4 => 'Gagal salur penyaluran TKDD',
+        5 => 'Ownership pegawai terhadap organisasi',
+        6 => 'Persepsi negatif masyarakat atas pemberitaan di media massa dan media sosial',
+        7 => 'Adanya perilaku korupsi pada pegawai Kemenkeu',
+        8 => 'Penyebaran pesan integritas pada media sosial unit kerja',
+        9 => 'Rumah dinas masih dikuasai oleh pihak lain yang tidak berhak',
+        10 => 'Kebocoran data dan informasi bersifat konfidensial/rahasia',
+    ];
+
     public const KATEGORI_RISIKO = [
         'Kebijakan' => 1,
         'Reputasi' => 2,

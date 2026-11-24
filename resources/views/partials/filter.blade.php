@@ -1,8 +1,22 @@
 <form method="GET" class="flex flex-wrap items-end gap-3 mb-4">
+    @if(request()->filled('kejadian_risiko'))
+        <input type="hidden" name="kejadian_risiko" value="{{ request('kejadian_risiko') }}">
+    @endif
     <div>
         <label class="block text-xs mb-1">Tahun</label>
         <input type="number" name="tahun" value="{{ $tahun ?? now()->year }}" onchange="this.form.requestSubmit()" class="w-24 rounded-md border border-slate-300 px-2 py-1.5 focus:border-[#00A2E9] focus:outline-none focus:ring-2 focus:ring-[#00A2E9]/20">
     </div>
+    @isset($daftarBulan)
+    <div>
+        <label class="block text-xs mb-1">Bulan</label>
+        <select name="bulan" onchange="this.form.requestSubmit()" class="rounded-md border border-slate-300 px-2 py-1.5 focus:border-[#00A2E9] focus:outline-none focus:ring-2 focus:ring-[#00A2E9]/20">
+            <option value="">Semua Bulan</option>
+            @foreach($daftarBulan as $nomorBulan => $namaBulan)
+                <option value="{{ $nomorBulan }}" @selected((int) request('bulan') === $nomorBulan)>{{ $namaBulan }}</option>
+            @endforeach
+        </select>
+    </div>
+    @endisset
     <div>
         <label class="block text-xs mb-1">Triwulan</label>
         <select name="triwulan" onchange="this.form.requestSubmit()" class="rounded-md border border-slate-300 px-2 py-1.5 focus:border-[#00A2E9] focus:outline-none focus:ring-2 focus:ring-[#00A2E9]/20">

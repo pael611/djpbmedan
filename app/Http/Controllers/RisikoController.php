@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Bidang;
+use App\Models\NilaiAwalRisiko;
 use App\Models\Risiko;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class RisikoController extends Controller
     {
         $rules = [
             'sasaran' => ['required', 'string'],
-            'kejadian_risiko' => ['required', 'string'],
+            'kejadian_risiko' => ['required', 'string', Rule::in(Risiko::DAFTAR_KEJADIAN_RISIKO)],
             'jenis_risiko' => ['required', Rule::in(array_keys(Risiko::JENIS_RISIKO))],
             'level_kemungkinan' => ['required', 'integer', 'between:1,5'],
             'level_dampak' => ['required', 'integer', 'between:1,5'],
@@ -34,6 +35,10 @@ class RisikoController extends Controller
 
         if ($request->user()->isPrivileged()) {
             $rules['bidang_id'] = ['required', 'exists:bidang,id'];
+        }
+
+        if ($request->user()->isAdministrator()) {
+            $rules['nilai_awal_tahun'] = ['nullable', 'integer', 'between:1,25'];
         }
 
         return $rules;
@@ -55,18 +60,28 @@ class RisikoController extends Controller
         return view('risiko.form', [
             'risiko' => new Risiko(['tahun' => now()->year, 'triwulan' => ceil(now()->month / 3)]),
             'bidangList' => Bidang::all(),
+            'nilaiAwalTahun' => null,
         ]);
     }
 
     public function store(Request $request)
     {
         $data = $request->validate($this->aturan($request));
+        $nilaiAwalTahun = $data['nilai_awal_tahun'] ?? null;
+        unset($data['nilai_awal_tahun']);
 
         if (! $request->user()->isPrivileged()) {
             $data['bidang_id'] = $request->user()->bidang_id;
         }
 
         $risiko = Risiko::create($data);
+
+        if ($request->user()->isAdministrator() && $nilaiAwalTahun !== null) {
+            NilaiAwalRisiko::query()->updateOrCreate(
+                ['tahun' => (int) $risiko->tahun, 'kejadian_risiko' => $risiko->kejadian_risiko],
+                ['nilai_awal' => (int) $nilaiAwalTahun, 'updated_by' => $request->user()->id]
+            );
+        }
 
         return redirect()->route('risiko.show', $risiko)->with('success', 'Kejadian risiko berhasil ditambahkan.');
     }
@@ -144,7 +159,16 @@ class RisikoController extends Controller
     {
         abort_unless($risiko->bolehDiaksesOleh($request->user()), 403);
 
-        return view('risiko.form', ['risiko' => $risiko, 'bidangList' => Bidang::all()]);
+        $nilaiAwalTahun = NilaiAwalRisiko::query()
+            ->where('tahun', $risiko->tahun)
+            ->where('kejadian_risiko', $risiko->kejadian_risiko)
+            ->value('nilai_awal');
+
+        return view('risiko.form', [
+            'risiko' => $risiko,
+            'bidangList' => Bidang::all(),
+            'nilaiAwalTahun' => $nilaiAwalTahun,
+        ]);
     }
 
     public function update(Request $request, Risiko $risiko)
@@ -152,9 +176,25 @@ class RisikoController extends Controller
         abort_unless($risiko->bolehDiaksesOleh($request->user()), 403);
 
         $data = $request->validate($this->aturan($request));
+        $nilaiAwalTahun = $data['nilai_awal_tahun'] ?? null;
+        unset($data['nilai_awal_tahun']);
 
         if ($request->user()->isPrivileged()) {
             $risiko->update($data);
+
+            if ($request->user()->isAdministrator() && $request->has('nilai_awal_tahun')) {
+                if ($nilaiAwalTahun === null) {
+                    NilaiAwalRisiko::query()
+                        ->where('tahun', (int) $risiko->tahun)
+                        ->where('kejadian_risiko', $risiko->kejadian_risiko)
+                        ->delete();
+                } else {
+                    NilaiAwalRisiko::query()->updateOrCreate(
+                        ['tahun' => (int) $risiko->tahun, 'kejadian_risiko' => $risiko->kejadian_risiko],
+                        ['nilai_awal' => (int) $nilaiAwalTahun, 'updated_by' => $request->user()->id]
+                    );
+                }
+            }
 
             return redirect()->route('risiko.show', $risiko)->with('success', 'Kejadian risiko diperbarui.');
         }

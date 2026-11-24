@@ -23,6 +23,7 @@ class IndikatorRisikoFactory extends Factory
             'nama_indikator' => fake()->unique()->sentence(3),
             'definisi' => fake()->sentence(),
             'satuan' => 'persen',
+            'jenis_konsolidasi' => 'tidak_ada',
             'formula' => fake()->sentence(),
             'polarisasi' => 'minimize',
             'batas_aman' => 10,

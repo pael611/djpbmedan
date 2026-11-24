@@ -27,7 +27,7 @@ class RisikoPdfExportTest extends TestCase
 
         $response->assertOk();
         $this->assertSame(
-            3,
+            5,
             substr_count($response->getContent(), 'onchange="this.form.requestSubmit()"')
         );
     }

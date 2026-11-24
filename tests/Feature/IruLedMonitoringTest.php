@@ -366,13 +366,13 @@ class IruLedMonitoringTest extends TestCase
 
     public function test_field_user_risk_edit_is_applied_only_after_approval(): void
     {
-        $risiko = Risiko::factory()->create(['kejadian_risiko' => 'Risiko awal']);
+        $risiko = Risiko::factory()->create(['kejadian_risiko' => Risiko::DAFTAR_KEJADIAN_RISIKO[1]]);
         $user = $this->userFor($risiko->bidang);
 
         $this->actingAs($user)
             ->put(route('risiko.update', $risiko), [
                 'sasaran' => $risiko->sasaran,
-                'kejadian_risiko' => 'Perubahan yang diajukan',
+                'kejadian_risiko' => Risiko::DAFTAR_KEJADIAN_RISIKO[2],
                 'jenis_risiko' => $risiko->jenis_risiko,
                 'level_kemungkinan' => $risiko->level_kemungkinan,
                 'level_dampak' => $risiko->level_dampak,
@@ -384,7 +384,7 @@ class IruLedMonitoringTest extends TestCase
             ->assertRedirect(route('risiko.show', $risiko))
             ->assertSessionHas('success', 'Perubahan risiko diajukan dan menunggu persetujuan Admin atau SKKI.');
 
-        $this->assertSame('Risiko awal', $risiko->fresh()->kejadian_risiko);
+        $this->assertSame(Risiko::DAFTAR_KEJADIAN_RISIKO[1], $risiko->fresh()->kejadian_risiko);
         $request = PermintaanPersetujuan::query()->firstOrFail();
         $supervisor = User::create([
             'name' => 'Supervisor',
@@ -397,10 +397,10 @@ class IruLedMonitoringTest extends TestCase
         $this->actingAs($supervisor)
             ->get(route('persetujuan.index'))
             ->assertOk()
-            ->assertSee('Perubahan yang diajukan');
+            ->assertSee(Risiko::DAFTAR_KEJADIAN_RISIKO[2]);
 
         $this->post(route('persetujuan.approve', $request))->assertRedirect();
-        $this->assertSame('Perubahan yang diajukan', $risiko->fresh()->kejadian_risiko);
+        $this->assertSame(Risiko::DAFTAR_KEJADIAN_RISIKO[2], $risiko->fresh()->kejadian_risiko);
     }
 
     public function test_field_user_recommendation_edits_and_deletes_require_approval(): void

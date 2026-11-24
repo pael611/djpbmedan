@@ -28,7 +28,7 @@ class RisikoTypeTest extends TestCase
 
         $response = $this->actingAs($user)->post(route('risiko.store'), [
             'sasaran' => 'Meningkatkan kepatuhan',
-            'kejadian_risiko' => 'Peluang tindak lanjut lebih cepat',
+            'kejadian_risiko' => \App\Models\Risiko::DAFTAR_KEJADIAN_RISIKO[8],
             'jenis_risiko' => $riskType,
             'level_kemungkinan' => 3,
             'level_dampak' => 4,
@@ -64,7 +64,7 @@ class RisikoTypeTest extends TestCase
         ]);
         $risiko = $bidang->risiko()->create([
             'sasaran' => 'Meningkatkan kepatuhan',
-            'kejadian_risiko' => 'Keterlambatan tindak lanjut',
+            'kejadian_risiko' => \App\Models\Risiko::DAFTAR_KEJADIAN_RISIKO[2],
             'level_kemungkinan' => 3,
             'level_dampak' => 4,
             'triwulan' => 1,
@@ -74,7 +74,7 @@ class RisikoTypeTest extends TestCase
         $this->actingAs($user)
             ->put(route('risiko.update', $risiko), [
                 'sasaran' => 'Meningkatkan kepatuhan',
-                'kejadian_risiko' => 'Peluang tindak lanjut lebih cepat',
+                'kejadian_risiko' => \App\Models\Risiko::DAFTAR_KEJADIAN_RISIKO[8],
                 'jenis_risiko' => 'upside',
                 'level_kemungkinan' => 3,
                 'level_dampak' => 4,
@@ -126,7 +126,7 @@ class RisikoTypeTest extends TestCase
             ->from(route('risiko.create'))
             ->post(route('risiko.store'), [
                 'sasaran' => 'Meningkatkan kepatuhan',
-                'kejadian_risiko' => 'Keterlambatan tindak lanjut',
+                'kejadian_risiko' => \App\Models\Risiko::DAFTAR_KEJADIAN_RISIKO[2],
                 'jenis_risiko' => $riskType,
                 'level_kemungkinan' => 3,
                 'level_dampak' => 4,

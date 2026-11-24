@@ -27,8 +27,22 @@
         <textarea name="sasaran" rows="2" required class="border rounded px-3 py-2 w-full">{{ old('sasaran', $risiko->sasaran) }}</textarea>
     </div>
     <div>
-        <label class="block text-sm mb-1">Kejadian Risiko</label>
-        <textarea name="kejadian_risiko" rows="3" required class="border rounded px-3 py-2 w-full">{{ old('kejadian_risiko', $risiko->kejadian_risiko) }}</textarea>
+        <label for="kejadian_risiko" class="block text-sm mb-1">Kejadian Risiko</label>
+        @php
+            $selectedKejadian = old('kejadian_risiko', $risiko->kejadian_risiko);
+            $daftarKejadian = \App\Models\Risiko::DAFTAR_KEJADIAN_RISIKO;
+        @endphp
+        <select id="kejadian_risiko" name="kejadian_risiko" required class="border rounded px-3 py-2 w-full">
+            <option value="">-- Pilih Kejadian Risiko --</option>
+            @foreach($daftarKejadian as $nomor => $namaKejadian)
+                <option value="{{ $namaKejadian }}" @selected($selectedKejadian === $namaKejadian)>
+                    {{ $nomor }}. {{ $namaKejadian }}
+                </option>
+            @endforeach
+            @if($selectedKejadian && ! in_array($selectedKejadian, $daftarKejadian, true))
+                <option value="{{ $selectedKejadian }}" selected disabled>{{ $selectedKejadian }} (data lama — silakan pilih dari 10 opsi baku)</option>
+            @endif
+        </select>
     </div>
     <div>
         <label for="jenis_risiko" class="block text-sm mb-1">Jenis Risiko</label>
@@ -83,6 +97,16 @@
             <input type="number" name="bobot_area_dampak" min="1" max="7" value="{{ old('bobot_area_dampak', $risiko->bobot_area_dampak) }}" class="border rounded px-3 py-2 w-full">
         </div>
     </div>
+
+    @if(auth()->user()->isAdministrator())
+    <div>
+        @php $tahunForm = old('tahun', $risiko->tahun ?? now()->year); @endphp
+        <label for="nilai_awal_tahun" class="block text-sm mb-1">
+            Nilai Risiko Awal Tahun (P{{ substr((string) $tahunForm, -2) }}, 1–25 · Khusus ADMIN, opsional)
+        </label>
+        <input id="nilai_awal_tahun" type="number" name="nilai_awal_tahun" min="1" max="25" value="{{ old('nilai_awal_tahun', $nilaiAwalTahun ?? null) }}" class="border rounded px-3 py-2 w-48">
+    </div>
+    @endif
 
     <div class="text-sm">Besaran risiko: <span id="preview" class="inline-block px-2 py-0.5 rounded font-semibold"></span></div>
 
