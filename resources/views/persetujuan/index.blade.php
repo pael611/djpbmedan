@@ -41,7 +41,7 @@
                     <strong>{{ $rencana->risiko->bidang->nama }} · Risiko #{{ $rencana->risiko_id }}</strong>
                     <span>Diajukan oleh {{ $rencana->user?->name ?? 'Pengguna tidak diketahui' }}</span>
                 </div>
-                <p class="mt-2">{{ $rencana->deskripsi_rencana }}</p>
+                <div class="rich-text-content mt-2 break-words [&_p]:mb-1 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:pl-1 [&_a]:break-all [&_a]:text-blue-700 [&_a]:underline [&_strong]:font-semibold [&_b]:font-semibold [&_em]:italic [&_i]:italic">{!! $rencana->deskripsi_rencana !!}</div>
                 <a class="mt-2 inline-block text-blue-700 underline" href="{{ route('rencana.evidence', $rencana) }}">Lihat bukti rencana</a>
                 <form method="POST" action="{{ route('rencana.verify', $rencana) }}" class="mt-3 flex flex-wrap items-end gap-2">
                     @csrf
@@ -68,7 +68,7 @@
                     <strong>{{ $progres->rencana->risiko->bidang->nama }} · Risiko #{{ $progres->rencana->risiko_id }}</strong>
                     <span>{{ $progres->bulan }}/{{ $progres->tahun }} · Diajukan oleh {{ $progres->user?->name ?? 'Pengguna tidak diketahui' }}</span>
                 </div>
-                <p class="mt-2">{{ $progres->deskripsi_progres }}</p>
+                <div class="rich-text-content mt-2 break-words [&_p]:mb-1 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:pl-1 [&_a]:break-all [&_a]:text-blue-700 [&_a]:underline [&_strong]:font-semibold [&_b]:font-semibold [&_em]:italic [&_i]:italic">{!! $progres->deskripsi_progres !!}</div>
                 <a class="mt-2 inline-block text-blue-700 underline" href="{{ route('progres.evidence', $progres) }}">Lihat bukti progres</a>
                 <form method="POST" action="{{ route('progres.verify', $progres) }}" class="mt-3 flex flex-wrap items-end gap-2">
                     @csrf

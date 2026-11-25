@@ -115,7 +115,7 @@
             @endif
             @if($b['first'])
                 <td class="p-2 border" rowspan="{{ $b['span'] }}">
-                    {{ $b['rn']->deskripsi_rencana ?? '—' }}
+                    <div class="rich-text-content break-words [&_p]:mb-1 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:pl-1 [&_a]:break-all [&_a]:text-blue-700 [&_a]:underline [&_strong]:font-semibold [&_b]:font-semibold [&_em]:italic [&_i]:italic">{!! $b['rn']->deskripsi_rencana ?? '—' !!}</div>
                     @if($b['rn'])
                         <div class="mt-1 text-xs">
                             {{ ['pending' => 'Menunggu validasi', 'approved' => 'Terverifikasi', 'rejected' => 'Ditolak'][$b['rn']->status_verifikasi] ?? 'Belum divalidasi' }}
@@ -127,7 +127,7 @@
             @endif
             <td class="p-2 border whitespace-nowrap">{{ $b['p'] ? $bulan[$b['p']->bulan].' '.$b['p']->tahun : '—' }}</td>
                 <td class="p-2 border">
-                    {{ $b['p']->deskripsi_progres ?? '—' }}
+                    <div class="rich-text-content break-words [&_p]:mb-1 [&_ol]:my-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:my-2 [&_ul]:list-disc [&_ul]:pl-5 [&_li]:pl-1 [&_a]:break-all [&_a]:text-blue-700 [&_a]:underline [&_strong]:font-semibold [&_b]:font-semibold [&_em]:italic [&_i]:italic">{!! $b['p']->deskripsi_progres ?? '—' !!}</div>
                     @if($b['p'])
                         <div class="mt-1 text-xs">{{ ['pending' => 'Menunggu validasi', 'approved' => 'Terverifikasi', 'rejected' => 'Ditolak'][$b['p']->status_verifikasi] ?? 'Belum divalidasi' }}</div>
                     @endif

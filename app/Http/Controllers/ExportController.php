@@ -61,7 +61,7 @@ class ExportController extends Controller
             ->with([
                 'bidang:id,kode,nama',
                 'rencana' => fn (HasMany $query) => $query
-                    ->select('id', 'risiko_id', 'deskripsi_rencana')
+                    ->select('id', 'risiko_id', 'deskripsi_rencana', 'status_verifikasi')
                     ->orderBy('id'),
                 'rencana.progres' => function (HasMany $query) use ($actualMonth, $actualYear): void {
                     $query->getQuery()

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\RichTextSanitizer;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -24,6 +25,11 @@ class RencanaMitigasi extends Model
         'diverifikasi_pada',
         'catatan_verifikasi',
     ];
+
+    public function getDeskripsiRencanaAttribute(?string $value): string
+    {
+        return RichTextSanitizer::sanitize($value ?? '');
+    }
 
     public function risiko(): BelongsTo
     {

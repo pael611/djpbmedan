@@ -160,6 +160,44 @@
             page-break-inside: auto;
         }
 
+        .rich-text-content p {
+            margin: 0 0 4px;
+        }
+
+        .rich-text-content ol,
+        .rich-text-content ul {
+            margin: 4px 0;
+            padding-left: 18px;
+        }
+
+        .rich-text-content ol {
+            list-style-type: decimal;
+        }
+
+        .rich-text-content ul {
+            list-style-type: disc;
+        }
+
+        .rich-text-content li {
+            margin-bottom: 2px;
+            padding-left: 2px;
+        }
+
+        .rich-text-content a {
+            color: #1d4ed8;
+            text-decoration: underline;
+        }
+
+        .rich-text-content strong,
+        .rich-text-content b {
+            font-weight: bold;
+        }
+
+        .rich-text-content em,
+        .rich-text-content i {
+            font-style: italic;
+        }
+
         .muted {
             color: #6b7280;
         }
@@ -279,7 +317,7 @@
                     <ol class="content-list">
                         @foreach($risiko->rencana as $rencana)
                             <li>
-                                {{ $rencana->deskripsi_rencana }}
+                                <div class="rich-text-content">{!! $rencana->deskripsi_rencana !!}</div>
                                 <span class="muted">({{ ['pending' => 'Menunggu validasi', 'approved' => 'Terverifikasi', 'rejected' => 'Ditolak'][$rencana->status_verifikasi] ?? 'Belum divalidasi' }})</span>
                             </li>
                         @endforeach
@@ -298,7 +336,7 @@
                         @foreach($progresAktual as $item)
                             <li>
                                 <span class="muted">{{ $item->bulan }}/{{ $item->tahun }}:</span>
-                                {{ $item->deskripsi_progres }}
+                                <div class="rich-text-content">{!! $item->deskripsi_progres !!}</div>
                                 <span class="muted">({{ ['pending' => 'Menunggu validasi', 'approved' => 'Terverifikasi', 'rejected' => 'Ditolak'][$item->status_verifikasi] ?? 'Belum divalidasi' }})</span>
                             </li>
                         @endforeach

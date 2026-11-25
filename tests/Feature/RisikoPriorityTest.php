@@ -29,7 +29,7 @@ class RisikoPriorityTest extends TestCase
 
         $response = $this->actingAs($user)->post(route('risiko.store'), [
             'sasaran' => 'Meningkatkan kepatuhan',
-            'kejadian_risiko' => \App\Models\Risiko::DAFTAR_KEJADIAN_RISIKO[2],
+            'kejadian_risiko' => Risiko::DAFTAR_KEJADIAN_RISIKO[2],
             'jenis_risiko' => 'downside',
             'level_kemungkinan' => 3,
             'level_dampak' => 4,
@@ -63,7 +63,7 @@ class RisikoPriorityTest extends TestCase
             ->from(route('risiko.create'))
             ->post(route('risiko.store'), [
                 'sasaran' => 'Meningkatkan kepatuhan',
-                'kejadian_risiko' => \App\Models\Risiko::DAFTAR_KEJADIAN_RISIKO[2],
+                'kejadian_risiko' => Risiko::DAFTAR_KEJADIAN_RISIKO[2],
                 'jenis_risiko' => 'downside',
                 'level_kemungkinan' => 3,
                 'level_dampak' => 4,

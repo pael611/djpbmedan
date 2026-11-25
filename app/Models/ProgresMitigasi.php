@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\RichTextSanitizer;
 use App\Traits\HitungMatriksRisiko;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -22,6 +23,11 @@ class ProgresMitigasi extends Model
         'bulan', 'tahun', 'file_bukti', 'bukti_path',
         'status_verifikasi', 'diverifikasi_oleh', 'diverifikasi_pada', 'catatan_verifikasi',
     ];
+
+    public function getDeskripsiProgresAttribute(?string $value): string
+    {
+        return RichTextSanitizer::sanitize($value ?? '');
+    }
 
     protected function casts(): array
     {

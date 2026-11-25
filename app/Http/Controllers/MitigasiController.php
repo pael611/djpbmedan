@@ -6,9 +6,11 @@ use App\Models\ProgresMitigasi;
 use App\Models\RencanaMitigasi;
 use App\Models\Risiko;
 use App\Models\User;
+use App\Support\RichTextSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use RuntimeException;
 
 class MitigasiController extends Controller
@@ -21,6 +23,8 @@ class MitigasiController extends Controller
             'deskripsi_rencana' => ['required', 'string'],
             'bukti_mitigasi' => ['required', 'file', 'mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx', 'max:10240'],
         ]);
+        $data['deskripsi_rencana'] = $this->sanitizeRichText($data['deskripsi_rencana']);
+        $this->ensureRichTextIsNotEmpty($data['deskripsi_rencana'], 'deskripsi_rencana');
         $data['bukti_path'] = $this->storeEvidence($request);
         $data['user_id'] = $request->user()->id;
         unset($data['bukti_mitigasi']);
@@ -46,6 +50,8 @@ class MitigasiController extends Controller
                 'max:10240',
             ],
         ]);
+        $data['deskripsi_rencana'] = $this->sanitizeRichText($data['deskripsi_rencana']);
+        $this->ensureRichTextIsNotEmpty($data['deskripsi_rencana'], 'deskripsi_rencana');
         unset($data['bukti_mitigasi']);
 
         if (! $request->user()->isPrivileged()) {
@@ -98,6 +104,8 @@ class MitigasiController extends Controller
         abort_unless($rencana->risiko->bolehDiaksesOleh($request->user()), 403);
 
         $data = $this->validatedProgress($request, true);
+        $data['deskripsi_progres'] = $this->sanitizeRichText($data['deskripsi_progres']);
+        $this->ensureRichTextIsNotEmpty($data['deskripsi_progres'], 'deskripsi_progres');
         $data['bukti_path'] = $this->storeEvidence($request);
         $data['user_id'] = $request->user()->id;
         unset($data['bukti_mitigasi']);
@@ -114,6 +122,8 @@ class MitigasiController extends Controller
     {
         abort_unless($progres->rencana->risiko->bolehDiaksesOleh($request->user()), 403);
         $data = $this->validatedProgress($request, ! $request->user()->isPrivileged());
+        $data['deskripsi_progres'] = $this->sanitizeRichText($data['deskripsi_progres']);
+        $this->ensureRichTextIsNotEmpty($data['deskripsi_progres'], 'deskripsi_progres');
         unset($data['bukti_mitigasi']);
 
         if (! $request->user()->isPrivileged()) {
@@ -223,6 +233,25 @@ class MitigasiController extends Controller
                 'max:10240',
             ],
         ]);
+    }
+
+    private function sanitizeRichText(string $html): string
+    {
+        return RichTextSanitizer::sanitize($html);
+    }
+
+    private function ensureRichTextIsNotEmpty(string $html, string $attribute): void
+    {
+        if (trim(strip_tags($html)) === '') {
+            $label = [
+                'deskripsi_rencana' => 'rencana mitigasi',
+                'deskripsi_progres' => 'progres mitigasi',
+            ][$attribute] ?? 'mitigasi';
+
+            throw ValidationException::withMessages([
+                $attribute => "Deskripsi {$label} wajib diisi.",
+            ]);
+        }
     }
 
     /**

@@ -42,29 +42,29 @@ class DashboardController extends Controller
         [$tahun, $triwulan, $bulan] = $this->filter($request);
         $triwulanEfektif = $triwulan ?? ($bulan ? (int) ceil($bulan / 3) : null);
         $kuartalAktif = $triwulanEfektif ?? now()->quarter;
-        $labelAwalTahun = 'P' . substr((string) $tahun, -2);
-        $labelKuartal = 'Q' . $kuartalAktif;
+        $labelAwalTahun = 'P'.substr((string) $tahun, -2);
+        $labelKuartal = 'Q'.$kuartalAktif;
 
         $risiko = Risiko::with([
             'bidang',
-            'rekomendasiRisiko' => fn($query) => $query
+            'rekomendasiRisiko' => fn ($query) => $query
                 ->where('tahun', $tahun)
-                ->when($triwulanEfektif, fn($query) => $query->where('triwulan', $triwulanEfektif)),
+                ->when($triwulanEfektif, fn ($query) => $query->where('triwulan', $triwulanEfektif)),
         ])
             ->where('tahun', $tahun)
-            ->when($triwulanEfektif, fn($q) => $q->where('triwulan', $triwulanEfektif))
-            ->when($request->filled('bidang_id'), fn($q) => $q->where('bidang_id', $request->bidang_id))
+            ->when($triwulanEfektif, fn ($q) => $q->where('triwulan', $triwulanEfektif))
+            ->when($request->filled('bidang_id'), fn ($q) => $q->where('bidang_id', $request->bidang_id))
             ->orderByPriority()
             ->get();
 
         // Data seluruh risiko pada tahun terpilih untuk menyusun tabel 10 Daftar Kejadian Risiko
         $risikoTahunIni = Risiko::with([
-            'rekomendasiRisiko' => fn($query) => $query
+            'rekomendasiRisiko' => fn ($query) => $query
                 ->where('tahun', $tahun)
                 ->orderByDesc('triwulan'),
         ])
             ->where('tahun', $tahun)
-            ->when($request->filled('bidang_id'), fn($q) => $q->where('bidang_id', $request->bidang_id))
+            ->when($request->filled('bidang_id'), fn ($q) => $q->where('bidang_id', $request->bidang_id))
             ->orderByDesc('triwulan')
             ->orderByPriority()
             ->get()
@@ -82,7 +82,7 @@ class DashboardController extends Controller
 
             $kandidatRisiko = $risikoTahunIni->get($namaKejadian, collect());
             $risikoKuartal = $kandidatRisiko->firstWhere('triwulan', $kuartalAktif)
-                ?? $kandidatRisiko->first(fn(Risiko $item): bool => (int) $item->triwulan <= $kuartalAktif)
+                ?? $kandidatRisiko->first(fn (Risiko $item): bool => (int) $item->triwulan <= $kuartalAktif)
                 ?? $kandidatRisiko->first();
 
             $nilaiKuartal = null;
@@ -105,23 +105,23 @@ class DashboardController extends Controller
         }
 
         $kejadianTerpilih = $request->input('kejadian_risiko');
-        if (!in_array($kejadianTerpilih, Risiko::DAFTAR_KEJADIAN_RISIKO, true)) {
+        if (! in_array($kejadianTerpilih, Risiko::DAFTAR_KEJADIAN_RISIKO, true)) {
             $kejadianTerpilih = Risiko::DAFTAR_KEJADIAN_RISIKO[1];
         }
 
         $indikatorRiwayat = IndikatorRisiko::query()
             ->with([
                 'risiko.bidang',
-                'pemantauanIru' => fn($query) => $query
+                'pemantauanIru' => fn ($query) => $query
                     ->whereBetween('tanggal_pengukuran', [
-                        ($tahun - 2) . '-01-01',
-                        $tahun . '-12-31',
+                        ($tahun - 2).'-01-01',
+                        $tahun.'-12-31',
                     ])
                     ->orderByDesc('tanggal_pengukuran'),
             ])
             ->whereHas('risiko', function ($query) use ($kejadianTerpilih, $request): void {
                 $query->where('kejadian_risiko', $kejadianTerpilih)
-                    ->when($request->filled('bidang_id'), fn($q) => $q->where('bidang_id', $request->bidang_id));
+                    ->when($request->filled('bidang_id'), fn ($q) => $q->where('bidang_id', $request->bidang_id));
             })
             ->orderBy('id')
             ->get();
@@ -158,7 +158,7 @@ class DashboardController extends Controller
             ]);
 
             foreach (Risiko::DAFTAR_KEJADIAN_RISIKO as $nomor => $namaKejadian) {
-                if (!array_key_exists($nomor, $data['nilai_awal_batch'])) {
+                if (! array_key_exists($nomor, $data['nilai_awal_batch'])) {
                     continue;
                 }
 
@@ -182,7 +182,7 @@ class DashboardController extends Controller
                 }
             }
 
-            $label = 'P' . substr((string) $data['tahun'], -2);
+            $label = 'P'.substr((string) $data['tahun'], -2);
 
             return back()->with('success', "Seluruh nilai awal tahun ({$label}) berhasil disimpan.");
         }
@@ -213,7 +213,7 @@ class DashboardController extends Controller
             ]
         );
 
-        $label = 'P' . substr((string) $data['tahun'], -2);
+        $label = 'P'.substr((string) $data['tahun'], -2);
 
         return back()->with('success', "Nilai awal tahun ({$label}) berhasil disimpan.");
     }
@@ -222,19 +222,19 @@ class DashboardController extends Controller
     public function bidang(Request $request)
     {
         $user = $request->user();
-        abort_if(!$user->bidang_id, 403, 'Akun Anda belum ditautkan ke bidang.');
+        abort_if(! $user->bidang_id, 403, 'Akun Anda belum ditautkan ke bidang.');
 
         [$tahun, $triwulan] = $this->filter($request);
 
         $risiko = Risiko::with([
             'bidang',
-            'rekomendasiRisiko' => fn($query) => $query
+            'rekomendasiRisiko' => fn ($query) => $query
                 ->where('tahun', $tahun)
-                ->when($triwulan, fn($query) => $query->where('triwulan', $triwulan)),
+                ->when($triwulan, fn ($query) => $query->where('triwulan', $triwulan)),
         ])
             ->where('bidang_id', $user->bidang_id)
             ->where('tahun', $tahun)
-            ->when($triwulan, fn($q) => $q->where('triwulan', $triwulan))
+            ->when($triwulan, fn ($q) => $q->where('triwulan', $triwulan))
             ->orderByPriority()
             ->get();
 

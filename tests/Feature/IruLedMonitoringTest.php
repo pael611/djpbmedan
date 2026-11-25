@@ -553,6 +553,126 @@ class IruLedMonitoringTest extends TestCase
         ]);
     }
 
+    public function test_rich_text_plan_is_sanitized_when_created_and_updated(): void
+    {
+        Storage::fake('local');
+        $risiko = Risiko::factory()->create();
+        $user = $this->userFor($risiko->bidang);
+        $description = '<p onclick="alert(1)">Rencana&nbsp;<strong>aman</strong> <a href="javascript:alert(2)" onclick="alert(3)">tautan buruk</a> <a href="https://example.com/panduan">tautan aman</a></p><script>alert(4)</script>';
+
+        $this->actingAs($user)
+            ->post(route('rencana.store', $risiko), [
+                'deskripsi_rencana' => $description,
+                'bukti_mitigasi' => UploadedFile::fake()->create('rencana.pdf', 20, 'application/pdf'),
+            ])
+            ->assertRedirectBackWithoutErrors();
+
+        $rencana = $risiko->rencana()->firstOrFail();
+        $storedDescription = $rencana->deskripsi_rencana;
+        $this->assertStringContainsString('<strong>aman</strong>', $storedDescription);
+        $this->assertStringContainsString(
+            '<a href="https://example.com/panduan" target="_blank" rel="noopener noreferrer nofollow">tautan aman</a>',
+            $storedDescription
+        );
+        $this->assertStringContainsString('tautan buruk', $storedDescription);
+        $this->assertStringNotContainsString('onclick', $storedDescription);
+        $this->assertStringNotContainsString('<script', $storedDescription);
+        $this->assertStringNotContainsString('javascript:', $storedDescription);
+        $this->assertStringNotContainsString('&nbsp;', $storedDescription);
+        $this->assertStringNotContainsString("\u{00A0}", $storedDescription);
+
+        $admin = User::create([
+            'name' => 'Admin',
+            'username' => 'admin-rich-plan',
+            'email' => 'admin-rich-plan@example.test',
+            'password' => 'password',
+            'role' => 'ADMIN',
+        ]);
+        $this->actingAs($admin)
+            ->put(route('rencana.update', $rencana), [
+                'deskripsi_rencana' => '<p><b onclick="alert(1)">Pembaruan</b>&nbsp;aman</p>',
+            ])
+            ->assertRedirectBackWithoutErrors();
+
+        $this->assertSame('<p><b>Pembaruan</b> aman</p>', $rencana->fresh()->deskripsi_rencana);
+    }
+
+    public function test_rich_text_progress_is_sanitized_when_created_and_updated(): void
+    {
+        Storage::fake('local');
+        $risiko = Risiko::factory()->create();
+        $rencana = $risiko->rencana()->create(['deskripsi_rencana' => 'Rencana awal.']);
+        $user = $this->userFor($risiko->bidang);
+        $description = '<p onclick="alert(1)">Progres&nbsp;<em>aman</em> <a href="data:text/html,hi">tautan buruk</a> <a href="http://example.com/panduan">tautan aman</a></p><script>alert(2)</script>';
+
+        $this->actingAs($user)
+            ->post(route('progres.store', $rencana), [
+                'bulan' => 6,
+                'tahun' => 2026,
+                'deskripsi_progres' => $description,
+                'bukti_mitigasi' => UploadedFile::fake()->create('progres.pdf', 20, 'application/pdf'),
+            ])
+            ->assertRedirectBackWithoutErrors();
+
+        $progres = $rencana->progres()->firstOrFail();
+        $storedDescription = $progres->deskripsi_progres;
+        $this->assertStringContainsString('<em>aman</em>', $storedDescription);
+        $this->assertStringContainsString(
+            '<a href="http://example.com/panduan" target="_blank" rel="noopener noreferrer nofollow">tautan aman</a>',
+            $storedDescription
+        );
+        $this->assertStringContainsString('tautan buruk', $storedDescription);
+        $this->assertStringNotContainsString('onclick', $storedDescription);
+        $this->assertStringNotContainsString('<script', $storedDescription);
+        $this->assertStringNotContainsString('data:', $storedDescription);
+        $this->assertStringNotContainsString('&nbsp;', $storedDescription);
+
+        $admin = User::create([
+            'name' => 'Admin',
+            'username' => 'admin-rich-progress',
+            'email' => 'admin-rich-progress@example.test',
+            'password' => 'password',
+            'role' => 'ADMIN',
+        ]);
+        $this->actingAs($admin)
+            ->put(route('progres.update', $progres), [
+                'bulan' => 6,
+                'tahun' => 2026,
+                'deskripsi_progres' => '<p><i onclick="alert(1)">Pembaruan</i>&nbsp;aman</p>',
+            ])
+            ->assertRedirectBackWithoutErrors();
+
+        $this->assertSame('<p><i>Pembaruan</i> aman</p>', $progres->fresh()->deskripsi_progres);
+    }
+
+    public function test_mitigation_plan_and_progress_without_visible_text_are_rejected(): void
+    {
+        Storage::fake('local');
+        $risiko = Risiko::factory()->create();
+        $user = $this->userFor($risiko->bidang);
+        $emptyDescription = '<script>alert(1)</script><p><br></p>';
+
+        $this->actingAs($user)
+            ->from(route('risiko.show', $risiko))
+            ->post(route('rencana.store', $risiko), [
+                'deskripsi_rencana' => $emptyDescription,
+                'bukti_mitigasi' => UploadedFile::fake()->create('rencana.pdf', 20, 'application/pdf'),
+            ])
+            ->assertSessionHasErrors('deskripsi_rencana');
+        $this->assertDatabaseCount('rencana_mitigasi', 0);
+
+        $rencana = $risiko->rencana()->create(['deskripsi_rencana' => 'Rencana awal.']);
+        $this->from(route('risiko.show', $risiko))
+            ->post(route('progres.store', $rencana), [
+                'bulan' => 6,
+                'tahun' => 2026,
+                'deskripsi_progres' => $emptyDescription,
+                'bukti_mitigasi' => UploadedFile::fake()->create('progres.pdf', 20, 'application/pdf'),
+            ])
+            ->assertSessionHasErrors('deskripsi_progres');
+        $this->assertDatabaseCount('progres_mitigasi', 0);
+    }
+
     public function test_field_user_must_attach_evidence_to_a_mitigation_plan(): void
     {
         $risiko = Risiko::factory()->create();

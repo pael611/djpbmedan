@@ -97,6 +97,70 @@ class RisikoPdfExportTest extends TestCase
         $this->assertGreaterThan(1, preg_match_all('/\/Type\s*\/Page\b/', $response->getContent()));
     }
 
+    public function test_formatted_mitigation_text_renders_in_web_views_and_pdf(): void
+    {
+        $bidang = Bidang::create(['kode' => 'SKKI', 'nama' => 'Seksi Kepatuhan Internal']);
+        $admin = User::create([
+            'name' => 'Admin',
+            'username' => 'admin-rich-text',
+            'email' => 'admin-rich-text@example.test',
+            'password' => 'password',
+            'role' => 'ADMIN',
+            'bidang_id' => $bidang->id,
+        ]);
+        $risiko = $bidang->risiko()->create([
+            'sasaran' => 'Meningkatkan kepatuhan',
+            'kejadian_risiko' => 'Keterlambatan tindak lanjut',
+            'level_kemungkinan' => 3,
+            'level_dampak' => 4,
+            'triwulan' => 4,
+            'tahun' => 2026,
+        ]);
+        $planHtml = '<ol onclick="alert(1)"><li><strong>Rencana terformat</strong> <a href="javascript:alert(2)">tautan ditolak</a> <a href="https://example.com/panduan">panduan</a></li></ol><script>alert(3)</script>';
+        $rencana = $risiko->rencana()->create([
+            'deskripsi_rencana' => $planHtml,
+            'status_verifikasi' => 'pending',
+        ]);
+        $rencana->progres()->create([
+            'deskripsi_progres' => '<ul onclick="alert(1)"><li><em>Progres terformat</em></li></ul><script>alert(2)</script>',
+            'bulan' => 9,
+            'tahun' => 2026,
+            'status_verifikasi' => 'pending',
+        ]);
+
+        $show = $this->actingAs($admin)->get(route('risiko.show', $risiko));
+        $show->assertOk()
+            ->assertSee('<em>Progres terformat</em>', false)
+            ->assertSee('data-quill-initial="'.base64_encode($rencana->deskripsi_rencana).'"', false)
+            ->assertDontSee('onclick', false)
+            ->assertDontSee('javascript:', false)
+            ->assertDontSee('alert(2)', false)
+            ->assertDontSee('alert(3)', false);
+        $this->assertSame(4, preg_match_all('/<div\b[^>]*\bdata-quill-editor\b/', $show->getContent()));
+
+        $this->get(route('risiko.laporan', ['tahun' => 2026]))
+            ->assertOk()
+            ->assertSee('<ol', false)
+            ->assertSee('<ul', false)
+            ->assertDontSee('&lt;ol&gt;', false);
+
+        $this->get(route('persetujuan.index'))
+            ->assertOk()
+            ->assertSee('<strong>Rencana terformat</strong>', false)
+            ->assertSee('<em>Progres terformat</em>', false);
+
+        $pdf = $this->get(route('risiko.export-pdf', [
+            'bidang' => 'SKKI',
+            'bulan_aktual' => 'September',
+            'tahun_aktual' => 2026,
+            'triwulan_rekomendasi' => 'IV',
+            'tahun_rekomendasi' => 2026,
+        ]));
+
+        $pdf->assertOk()->assertDownload('laporan-risiko-skki-september-2026.pdf');
+        $this->assertStringStartsWith('%PDF', $pdf->getContent());
+    }
+
     public function test_non_admin_cannot_download_a_risk_report_pdf(): void
     {
         $user = User::create([
