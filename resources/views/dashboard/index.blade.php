@@ -10,6 +10,7 @@
                     : 'Tahun ' . $tahun);
 
         $isAdmin = auth()->user()->isAdministrator();
+        $sedangEditAwal = $isAdmin && ($errors->has('nilai_awal_batch') || $errors->has('nilai_awal_batch.*'));
 
         $warnaSel = [
             'merah' => 'background-color: #DC2626; color: #FFFFFF;',
@@ -33,116 +34,135 @@
             </div>
         </div>
 
-        {{-- 1 & 2. Matriks 5x5 + Tabel Daftar Kejadian Risiko --}}
-        <div class="grid items-start gap-6 lg:grid-cols-12">
-            {{-- 1. Matriks 5x5 --}}
-            <div class="min-w-0 space-y-4 lg:col-span-6">
-                @include('partials.matriks', [
-                    'matriks' => $matriksSaatIni,
-                    'judul' => 'Matriks Analisis Risiko 5×5 — ' . $labelPeriodeMatriks,
-                ])
-                <div>
-                    <img src="{{ asset('image/legenda.png') }}" alt="Legenda Matriks Risiko"
-                        class="w-full max-w-md rounded-md">
-                </div>
-            </div>
-
-            {{-- 2. Tabel Daftar Kejadian Risiko (4 Kolom: No, Kejadian Risiko, Pxx, Qx) --}}
-            <section class="min-w-0 rounded-xl border border-slate-200 bg-white p-5 lg:col-span-6">
-                <div class="mb-3">
-                    <h2 class="text-lg font-bold text-[#005FAC]">Daftar Kejadian Risiko</h2>
-                    <p class="mt-0.5 text-xs text-slate-500">
-                        <strong>{{ $labelAwalTahun }}</strong>: nilai awal tahun {{ $tahun }}
-                        · <strong>{{ $labelKuartal }}</strong>: nilai risiko Kuartal
-                        {{ $kuartalAktif }}/{{ $tahun }}.
-                    </p>
-                </div>
-
-                @if ($isAdmin)
-                    <form method="POST" action="{{ route('dashboard.nilai-awal.update') }}">
-                        @csrf
-                        @method('PUT')
-                        <input type="hidden" name="tahun" value="{{ $tahun }}">
-                @endif
-
-                <div class="overflow-x-auto">
-                    <table class="w-full border-collapse text-sm">
-                        <thead>
-                            <tr class="bg-[#3B9AB8] text-white">
-                                <th class="w-10 border border-white px-2.5 py-2 text-center font-semibold">No</th>
-                                <th class="border border-white px-3 py-2 text-left font-semibold">Kejadian Risiko</th>
-                                <th class="w-24 border border-white px-2.5 py-2 text-center font-semibold">
-                                    {{ $labelAwalTahun }}</th>
-                                <th class="w-16 border border-white px-2.5 py-2 text-center font-semibold">
-                                    {{ $labelKuartal }}</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($daftarKejadian as $item)
-                                @php
-                                    $kodeAwal = $item['klasifikasi_awal']['kode'] ?? null;
-                                    $kodeKuartal = $item['klasifikasi_kuartal']['kode'] ?? null;
-                                    $styleBaris = $kodeAwal
-                                        ? $warnaSel[$kodeAwal] ?? ''
-                                        : ($kodeKuartal
-                                            ? $warnaSel[$kodeKuartal] ?? ''
-                                            : 'background-color: #F8FAFC; color: #111827;');
-                                    $styleAwal = $kodeAwal
-                                        ? $warnaSel[$kodeAwal] ?? ''
-                                        : 'background-color: #F8FAFC; color: #475569;';
-                                    $styleKuartal = $kodeKuartal
-                                        ? $warnaSel[$kodeKuartal] ?? ''
-                                        : 'background-color: #F8FAFC; color: #475569;';
-                                @endphp
-                                <tr>
-                                    <td class="border border-white px-2.5 py-2 text-center font-semibold"
-                                        style="{{ $styleBaris }}">
-                                        {{ $item['no'] }}
-                                    </td>
-                                    <td class="border border-white px-3 py-2 font-medium leading-snug"
-                                        style="{{ $styleBaris }}">
-                                        @if ($item['risiko_id'])
-                                            <a href="{{ route('risiko.show', $item['risiko_id']) }}"
-                                                class="hover:underline">
-                                                {{ $item['kejadian_risiko'] }}
-                                            </a>
-                                        @else
-                                            {{ $item['kejadian_risiko'] }}
-                                        @endif
-                                    </td>
-                                    <td class="border border-white px-2 py-1.5 text-center font-semibold"
-                                        style="{{ $styleAwal }}">
-                                        @if ($isAdmin)
-                                            <input type="number" name="nilai_awal_batch[{{ $item['no'] }}]"
-                                                min="1" max="25"
-                                                value="{{ old('nilai_awal_batch.' . $item['no'], $item['nilai_awal']) }}"
-                                                placeholder="1-25"
-                                                aria-label="Nilai {{ $labelAwalTahun }} untuk {{ $item['kejadian_risiko'] }}"
-                                                class="w-16 rounded border border-slate-400 bg-white px-1.5 py-1 text-center text-sm font-semibold text-slate-900">
-                                        @else
-                                            {{ $item['nilai_awal'] ?? '—' }}
-                                        @endif
-                                    </td>
-                                    <td class="border border-white px-2.5 py-2 text-center font-bold"
-                                        style="{{ $styleKuartal }}">
-                                        {{ $item['nilai_kuartal'] ?? '—' }}
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-
-                @if ($isAdmin)
-                    <div class="mt-3 flex justify-end">
-                        <button type="submit"
-                            class="rounded-md bg-slate-900 px-4 py-2 text-xs font-semibold text-white hover:bg-slate-700">
-                            Simpan Nilai {{ $labelAwalTahun }}
-                        </button>
+        <div class="ringkasan-dashboard">
+            {{-- 1 & 2. Matriks 5x5 + Tabel Daftar Kejadian Risiko --}}
+            <div class="grid items-start gap-6 lg:grid-cols-12">
+                {{-- 1. Matriks 5x5 --}}
+                <div class="min-w-0 space-y-4 lg:col-span-6">
+                    @include('partials.matriks', [
+                        'matriks' => $matriksSaatIni,
+                        'judul' => 'Matriks Analisis Risiko 5×5 — ' . $labelPeriodeMatriks,
+                    ])
+                    <div>
+                        <img src="{{ asset('image/legenda.png') }}" alt="Legenda Matriks Risiko"
+                            class="w-full max-w-md rounded-md">
                     </div>
-                    </form>
-                @endif
-            </section>
+                </div>
+
+                {{-- 2. Tabel Daftar Kejadian Risiko (4 Kolom: No, Kejadian Risiko, Pxx, Qx) --}}
+                <section class="min-w-0 rounded-xl border border-slate-200 bg-white p-5 lg:col-span-6"
+                    data-nilai-awal-section data-edit-mode="{{ $sedangEditAwal ? 'true' : 'false' }}">
+                    @if ($isAdmin)
+                        <form method="POST" action="{{ route('dashboard.nilai-awal.update') }}" data-nilai-awal-form>
+                            @csrf
+                            @method('PUT')
+                            <input type="hidden" name="tahun" value="{{ $tahun }}">
+                    @endif
+
+                    <div class="mb-3 flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-lg font-bold text-[#005FAC]">Daftar Kejadian Risiko</h2>
+                            <p class="mt-0.5 text-xs text-slate-500">
+                                <strong>{{ $labelAwalTahun }}</strong>: nilai awal tahun {{ $tahun }}
+                                · <strong>{{ $labelKuartal }}</strong>: nilai risiko Kuartal
+                                {{ $kuartalAktif }}/{{ $tahun }}.
+                            </p>
+                        </div>
+
+                        @if ($isAdmin)
+                            <div class="flex items-center gap-2">
+                                <button type="button" data-btn-edit-awal
+                                    class="{{ $sedangEditAwal ? 'hidden' : '' }} rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                                    Update {{ $labelAwalTahun }}
+                                </button>
+                                <button type="submit" data-btn-save-awal
+                                    class="{{ $sedangEditAwal ? '' : 'hidden' }} rounded-md bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-slate-700">
+                                    Simpan
+                                </button>
+                                <button type="button" data-btn-cancel-awal
+                                    class="{{ $sedangEditAwal ? '' : 'hidden' }} rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                                    Batalkan
+                                </button>
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse text-sm">
+                            <thead>
+                                <tr class="bg-[#3B9AB8] text-white">
+                                    <th class="w-10 border border-white px-2.5 py-2 text-center font-semibold">No</th>
+                                    <th class="border border-white px-3 py-2 text-left font-semibold">Kejadian Risiko</th>
+                                    <th class="w-24 border border-white px-2.5 py-2 text-center font-semibold">
+                                        {{ $labelAwalTahun }}</th>
+                                    <th class="w-16 border border-white px-2.5 py-2 text-center font-semibold">
+                                        {{ $labelKuartal }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($daftarKejadian as $item)
+                                    @php
+                                        $kodeAwal = $item['klasifikasi_awal']['kode'] ?? null;
+                                        $kodeKuartal = $item['klasifikasi_kuartal']['kode'] ?? null;
+                                        $styleBaris = $kodeAwal
+                                            ? $warnaSel[$kodeAwal] ?? ''
+                                            : ($kodeKuartal
+                                                ? $warnaSel[$kodeKuartal] ?? ''
+                                                : 'background-color: #F8FAFC; color: #111827;');
+                                        $styleAwal = $kodeAwal
+                                            ? $warnaSel[$kodeAwal] ?? ''
+                                            : 'background-color: #F8FAFC; color: #475569;';
+                                        $styleKuartal = $kodeKuartal
+                                            ? $warnaSel[$kodeKuartal] ?? ''
+                                            : 'background-color: #F8FAFC; color: #475569;';
+                                    @endphp
+                                    <tr>
+                                        <td class="border border-white px-2.5 py-2 text-center font-semibold"
+                                            style="{{ $styleBaris }}">
+                                            {{ $item['no'] }}
+                                        </td>
+                                        <td class="border border-white px-3 py-2 font-medium leading-snug"
+                                            style="{{ $styleBaris }}">
+                                            @if ($item['risiko_id'])
+                                                <a href="{{ route('risiko.show', $item['risiko_id']) }}"
+                                                    class="hover:underline">
+                                                    {{ $item['kejadian_risiko'] }}
+                                                </a>
+                                            @else
+                                                {{ $item['kejadian_risiko'] }}
+                                            @endif
+                                        </td>
+                                        <td class="border border-white px-2 py-2 text-center font-bold"
+                                            style="{{ $styleAwal }}">
+                                            <span data-awal-display class="{{ $sedangEditAwal ? 'hidden' : '' }}">
+                                                {{ $item['nilai_awal'] ?? '—' }}
+                                            </span>
+                                            @if ($isAdmin)
+                                                <input type="number" name="nilai_awal_batch[{{ $item['no'] }}]"
+                                                    min="1" max="25"
+                                                    value="{{ old('nilai_awal_batch.' . $item['no'], $item['nilai_awal']) }}"
+                                                    data-initial-value="{{ $item['nilai_awal'] ?? '' }}" data-awal-input
+                                                    placeholder="1-25"
+                                                    aria-label="Nilai {{ $labelAwalTahun }} untuk {{ $item['kejadian_risiko'] }}"
+                                                    @disabled(!$sedangEditAwal)
+                                                    class="{{ $sedangEditAwal ? '' : 'hidden' }} w-16 rounded border border-slate-400 bg-white px-1.5 py-1 text-center text-sm font-semibold text-slate-900">
+                                            @endif
+                                        </td>
+                                        <td class="border border-white px-2.5 py-2 text-center font-bold"
+                                            style="{{ $styleKuartal }}">
+                                            {{ $item['nilai_kuartal'] ?? '—' }}
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if ($isAdmin)
+                        </form>
+                    @endif
+                </section>
+            </div>
         </div>
 
         {{-- 3. Tabel Data Riwayat IRU (Y-2, Y-1, Y) berdasarkan filter Kejadian Risiko --}}
@@ -224,7 +244,8 @@
                                     <tr class="bg-slate-200 font-semibold text-slate-800">
                                         <th rowspan="2" class="border border-slate-300 px-3 py-2 text-left">Periode</th>
                                         <th colspan="4" class="border border-slate-300 px-2 py-1.5">Y-2
-                                            ({{ $tahun - 2 }})</th>
+                                            ({{ $tahun - 2 }})
+                                        </th>
                                         <th colspan="4" class="border border-slate-300 px-2 py-1.5">Y-1
                                             ({{ $tahun - 1 }})</th>
                                         <th colspan="3" class="border border-slate-300 px-2 py-1.5">Y
@@ -288,4 +309,41 @@
             </div>
         </section>
     </div>
+
+    @if ($isAdmin)
+        <script>
+            (function() {
+                const section = document.querySelector('[data-nilai-awal-section]');
+                if (!section) return;
+
+                const btnEdit = section.querySelector('[data-btn-edit-awal]');
+                const btnSave = section.querySelector('[data-btn-save-awal]');
+                const btnCancel = section.querySelector('[data-btn-cancel-awal]');
+                const displays = section.querySelectorAll('[data-awal-display]');
+                const inputs = section.querySelectorAll('[data-awal-input]');
+
+                function setEditMode(editing, resetValues = false) {
+                    btnEdit?.classList.toggle('hidden', editing);
+                    btnSave?.classList.toggle('hidden', !editing);
+                    btnCancel?.classList.toggle('hidden', !editing);
+
+                    displays.forEach((el) => el.classList.toggle('hidden', editing));
+                    inputs.forEach((input) => {
+                        if (resetValues) {
+                            input.value = input.getAttribute('data-initial-value') ?? '';
+                        }
+                        input.classList.toggle('hidden', !editing);
+                        input.disabled = !editing;
+                    });
+
+                    if (editing && inputs.length > 0) {
+                        inputs[0].focus();
+                    }
+                }
+
+                btnEdit?.addEventListener('click', () => setEditMode(true));
+                btnCancel?.addEventListener('click', () => setEditMode(false, true));
+            })();
+        </script>
+    @endif
 @endsection
