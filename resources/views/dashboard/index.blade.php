@@ -56,7 +56,7 @@
                         ]),
                     ) }}"
                         class="rounded-md bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700">
-                        Export PPTX Rapat UPR
+                        Export Slide PPT
                     </a>
                 @endif
             </div>
