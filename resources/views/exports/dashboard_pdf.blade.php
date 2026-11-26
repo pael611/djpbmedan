@@ -7,7 +7,7 @@
     <style>
         @page {
             size: A4 landscape;
-            margin: 8mm 10mm;
+            margin: 7mm 9mm;
         }
 
         body {
@@ -30,17 +30,17 @@
 
         .left-col {
             padding-right: 12px;
-            width: 46%;
+            width: 47%;
         }
 
         .right-col {
-            width: 54%;
+            width: 53%;
         }
 
         .main-title {
-            font-size: 17px;
+            font-size: 18px;
             font-weight: bold;
-            margin: 0 0 8px 0;
+            margin: 0 0 10px 0;
         }
 
         /* Matriks 5x5 */
@@ -53,64 +53,68 @@
         table.matriks th,
         table.matriks td {
             border: 1px solid #374151;
-            padding: 2px 3px;
+            padding: 3px 4px;
         }
 
         .matriks-top {
-            font-size: 8px;
+            font-size: 9px;
             font-weight: bold;
+            padding: 4px 5px;
             text-align: left;
         }
 
         .matriks-hdr {
             background-color: #f8fafc;
-            font-size: 7.5px;
+            font-size: 8.5px;
             font-weight: bold;
+            padding: 4px 3px;
             text-align: center;
         }
 
         .matriks-subhdr {
             background-color: #ffffff;
-            font-size: 6.5px;
+            font-size: 7px;
             font-weight: normal;
+            padding: 4px 3px;
             text-align: left;
         }
 
         .axis-y {
             background-color: #ffffff;
-            font-size: 7px;
-            font-weight: bold;
-            text-align: center;
-            width: 18px;
-        }
-
-        .axis-y-label {
-            font-size: 6.5px;
-            text-align: left;
-            width: 68px;
-        }
-
-        .axis-y-num {
             font-size: 7.5px;
             font-weight: bold;
             text-align: center;
-            width: 14px;
+            vertical-align: middle;
+        }
+
+        .axis-y-num {
+            font-size: 8.5px;
+            font-weight: bold;
+            text-align: center;
+            vertical-align: middle;
+        }
+
+        .axis-y-label {
+            font-size: 7.5px;
+            text-align: left;
+            vertical-align: middle;
         }
 
         .cell-box {
-            height: 44px;
+            height: 66px;
+            padding: 4px 5px;
             text-align: left;
             vertical-align: top;
         }
 
         .cell-score {
-            font-size: 15px;
+            font-size: 21px;
             font-weight: bold;
             line-height: 1.05;
         }
 
         .cell-ids {
-            margin-top: 2px;
+            margin-top: 4px;
         }
 
         .risk-chip {
@@ -119,10 +123,10 @@
             border-radius: 3px;
             color: #111827;
             display: inline-block;
-            font-size: 7px;
+            font-size: 7.5px;
             font-weight: bold;
-            margin: 1px 1px 0 0;
-            padding: 0 3px;
+            margin: 1px 2px 0 0;
+            padding: 1px 4px;
         }
 
         .risk-chip-upside {
@@ -132,15 +136,15 @@
         /* Legenda */
         table.legenda {
             border-collapse: collapse;
-            margin-top: 10px;
-            width: 72%;
+            margin-top: 14px;
+            width: 78%;
         }
 
         table.legenda th,
         table.legenda td {
             border: 1px solid #374151;
-            font-size: 8.5px;
-            padding: 3px 6px;
+            font-size: 9.5px;
+            padding: 6px 8px;
             text-align: center;
         }
 
@@ -157,35 +161,37 @@
 
         table.daftar th {
             background-color: #4bacc6;
-            border: 1.5px solid #ffffff;
+            border: 2px solid #ffffff;
             color: #ffffff;
-            font-size: 10.5px;
+            font-size: 12px;
             font-weight: bold;
-            padding: 6px 6px;
+            padding: 9px 7px;
             text-align: center;
         }
 
         table.daftar td {
-            border: 1.5px solid #ffffff;
-            font-size: 10px;
-            padding: 6px 7px;
+            border: 2px solid #ffffff;
+            font-size: 11px;
+            height: 52px;
+            padding: 6px 8px;
             vertical-align: middle;
         }
 
         .col-no {
+            font-size: 12px;
             font-weight: bold;
             text-align: center;
             width: 7%;
         }
 
         .col-kejadian {
-            line-height: 1.25;
+            line-height: 1.3;
             text-align: left;
             width: 73%;
         }
 
         .col-skor {
-            font-size: 11px;
+            font-size: 12.5px;
             font-weight: bold;
             text-align: center;
             width: 10%;
@@ -232,6 +238,16 @@
                 <h1 class="main-title">Peta Risiko Kanwil DJPb Sumut {{ $tahun }}</h1>
 
                 <table class="matriks">
+                    <colgroup>
+                        <col style="width: 5%;">
+                        <col style="width: 4%;">
+                        <col style="width: 16%;">
+                        <col style="width: 15%;">
+                        <col style="width: 15%;">
+                        <col style="width: 15%;">
+                        <col style="width: 15%;">
+                        <col style="width: 15%;">
+                    </colgroup>
                     <tr>
                         <td colspan="8" class="matriks-top">2. Peta Risiko</td>
                     </tr>
