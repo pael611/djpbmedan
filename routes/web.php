@@ -34,6 +34,8 @@ Route::middleware('auth')->group(function () {
         ->middleware('role.dashboard')->name('dashboard.index');
     Route::put('/dashboard/nilai-awal', [DashboardController::class, 'updateNilaiAwal'])
         ->middleware('role.dashboard')->name('dashboard.nilai-awal.update');
+    Route::get('/dashboard/export-pdf', [ExportController::class, 'exportDashboardPdf'])
+        ->middleware('role.dashboard')->name('dashboard.export-pdf');
 
     // Dashboard per bidang
     Route::get('/dashboard/bidang', [DashboardController::class, 'bidang'])->name('dashboard.bidang');

@@ -204,4 +204,97 @@ class ExportController extends Controller
 
         return $pdf->download($filename);
     }
+public function exportDashboardPdf(Request $request): Response
+{
+    abort_unless($request->user()?->isAdministrator(), 403);
+
+    $tahun = (int) $request->input('tahun', now()->year);
+    $triwulan = $request->filled('triwulan') ? (int) $request->input('triwulan') : null;
+    $bulan = $request->filled('bulan') ? (int) $request->input('bulan') : null;
+    if ($bulan !== null && ($bulan < 1 || $bulan > 12)) {
+        $bulan = null;
+    }
+
+    $triwulanEfektif = $triwulan ?? ($bulan ? (int) ceil($bulan / 3) : null);
+    $kuartalAktif = $triwulanEfektif ?? now()->quarter;
+    $labelAwalTahun = 'P'.substr((string) $tahun, -2);
+    $labelKuartal = 'Q'.$kuartalAktif;
+
+    $risiko = Risiko::with([
+        'bidang',
+        'rekomendasiRisiko' => fn ($query) => $query
+            ->where('tahun', $tahun)
+            ->when($triwulanEfektif, fn ($q) => $q->where('triwulan', $triwulanEfektif)),
+    ])
+        ->where('tahun', $tahun)
+        ->when($triwulanEfektif, fn ($q) => $q->where('triwulan', $triwulanEfektif))
+        ->when($request->filled('bidang_id'), fn ($q) => $q->where('bidang_id', $request->bidang_id))
+        ->orderByPriority()
+        ->get();
+
+    // Petakan ke matriks 5x5 [kemungkinan][dampak]
+    $matriksSaatIni = [];
+    for ($k = 1; $k <= 5; $k++) {
+        for ($d = 1; $d <= 5; $d++) {
+            $matriksSaatIni[$k][$d] = collect();
+        }
+    }
+    foreach ($risiko as $r) {
+        $matriksSaatIni[$r->level_kemungkinan][$r->level_dampak]->push($r);
+    }
+
+    // Susun tabel 10 Daftar Kejadian Risiko (Pxx & Qx)
+    $risikoTahunIni = Risiko::with([
+        'rekomendasiRisiko' => fn ($query) => $query
+            ->where('tahun', $tahun)
+            ->orderByDesc('triwulan'),
+    ])
+        ->where('tahun', $tahun)
+        ->when($request->filled('bidang_id'), fn ($q) => $q->where('bidang_id', $request->bidang_id))
+        ->orderByDesc('triwulan')
+        ->orderByPriority()
+        ->get()
+        ->groupBy('kejadian_risiko');
+
+    $nilaiAwalMap = NilaiAwalRisiko::query()
+        ->where('tahun', $tahun)
+        ->get()
+        ->keyBy('kejadian_risiko');
+
+    $daftarKejadian = [];
+    foreach (Risiko::DAFTAR_KEJADIAN_RISIKO as $nomor => $namaKejadian) {
+        $nilaiAwal = $nilaiAwalMap->get($namaKejadian)?->nilai_awal;
+        $kandidat = $risikoTahunIni->get($namaKejadian, collect());
+        $risikoKuartal = $kandidat->firstWhere('triwulan', $kuartalAktif)
+            ?? $kandidat->first(fn (Risiko $item): bool => (int) $item->triwulan <= $kuartalAktif)
+            ?? $kandidat->first();
+
+        $nilaiKuartal = null;
+        if ($risikoKuartal) {
+            $rekomendasiKuartal = $risikoKuartal->rekomendasiRisiko->firstWhere('triwulan', $kuartalAktif);
+            $nilaiKuartal = $rekomendasiKuartal?->rekomendasi_besaran ?? (int) $risikoKuartal->besaran_risiko;
+        }
+
+        $daftarKejadian[] = [
+            'no' => $nomor,
+            'kejadian_risiko' => $namaKejadian,
+            'nilai_awal' => $nilaiAwal,
+            'klasifikasi_awal' => $nilaiAwal ? Risiko::klasifikasi($nilaiAwal) : null,
+            'nilai_kuartal' => $nilaiKuartal,
+            'klasifikasi_kuartal' => $nilaiKuartal ? Risiko::klasifikasi($nilaiKuartal) : null,
+        ];
+    }
+
+    $pdf = Pdf::loadView('exports.dashboard_pdf', [
+        'tahun' => $tahun,
+        'labelAwalTahun' => $labelAwalTahun,
+        'labelKuartal' => $labelKuartal,
+        'matriksSaatIni' => $matriksSaatIni,
+        'daftarKejadian' => $daftarKejadian,
+    ])->setPaper('a4', 'landscape');
+
+    $filename = Str::slug("peta-risiko-kanwil-djpb-sumut-{$tahun}-{$labelKuartal}").'.pdf';
+
+    return $pdf->download($filename);
+}
 }
