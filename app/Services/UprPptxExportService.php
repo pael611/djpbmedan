@@ -458,57 +458,66 @@ class UprPptxExportService
         string $romawiRekomendasi,
         int $tahunRekomendasi
     ): void {
-        // Susun daftar Rencana Mitigasi beserta status validasi bukti
+        // Susun daftar Rencana Mitigasi (parent: 1., 2., ...) & Progress Mitigasi (child: 1.1., 1.2., 2.1., ...)
         $rencanaEntries = [];
+        $progresEntries = [];
+        $nomorRencana = 0;
+
         foreach ($risiko->rencana as $rencana) {
             /** @var RencanaMitigasi $rencana */
-            $status = $this->formatStatusVerifikasi($rencana->status_verifikasi);
-            $lines = $this->extractRichTextLines($rencana->deskripsi_rencana);
-            $lastIndex = count($lines) - 1;
-            foreach ($lines as $idx => $line) {
-                $rencanaEntries[] = [
-                    'text' => $line,
-                    'status' => $idx === $lastIndex ? $status : null,
-                ];
-            }
-        }
+            $nomorRencana++;
+            $statusRencana = $this->formatStatusVerifikasi($rencana->status_verifikasi);
+            $linesRencana = $this->extractRichTextLines($rencana->deskripsi_rencana);
+            $teksRencana = $linesRencana !== [] ? implode(' ', $linesRencana) : '—';
 
-        // Susun daftar Progress Mitigasi dari model ProgresMitigasi (urut kronologis + status_verifikasi)
-        $progresEntries = [];
-        $semuaProgres = $risiko->rencana
-            ->flatMap(fn (RencanaMitigasi $rencana) => $rencana->progres)
-            ->sortBy([
-                ['tahun', 'asc'],
-                ['bulan', 'asc'],
-                ['id', 'asc'],
-            ])
-            ->values();
+            $rencanaEntries[] = [
+                'prefix' => "{$nomorRencana}. ",
+                'text' => $teksRencana,
+                'status' => $statusRencana,
+            ];
 
-        foreach ($semuaProgres as $progres) {
-            /** @var ProgresMitigasi $progres */
-            $status = $this->formatStatusVerifikasi($progres->status_verifikasi);
-            $periodePrefix = "{$progres->bulan}/{$progres->tahun}: ";
-            $lines = $this->extractRichTextLines($progres->deskripsi_progres);
-            foreach ($lines as $idx => $line) {
+            $progresRencana = $rencana->progres
+                ->sortBy([
+                    ['tahun', 'asc'],
+                    ['bulan', 'asc'],
+                    ['id', 'asc'],
+                ])
+                ->values();
+
+            $nomorProgres = 0;
+            foreach ($progresRencana as $progres) {
+                /** @var ProgresMitigasi $progres */
+                $nomorProgres++;
+                $statusProgres = $this->formatStatusVerifikasi($progres->status_verifikasi);
+                $linesProgres = $this->extractRichTextLines($progres->deskripsi_progres);
+                $teksProgres = $linesProgres !== [] ? implode(' ', $linesProgres) : '—';
+
                 $progresEntries[] = [
-                    'text' => ($idx === 0 ? $periodePrefix : '').$line,
-                    'status' => $status,
+                    'prefix' => "{$nomorRencana}.{$nomorProgres}. ",
+                    'text' => "{$progres->bulan}/{$progres->tahun}: {$teksProgres}",
+                    'status' => $statusProgres,
                 ];
             }
         }
 
-        // Hitung kebutuhan baris visual (bukan sekadar jumlah item) agar teks tidak pernah meluber keluar box
-        $charsPerLine = 90;
-        $rencanaVisualLines = $this->estimateVisualLines($rencanaEntries, $charsPerLine);
-        $progresVisualLines = $this->estimateVisualLines($progresEntries, $charsPerLine);
-        $muatSatuSlide = $rencanaVisualLines <= 6 && $progresVisualLines <= 5;
+        // Hitung tinggi dinamis berbasis baris visual agar pas tanpa ruang kosong berlebih & tanpa meluber
+        $charsPerLine = 100;
+        $lineHeightPx = 15;
+        $boxPadPx = 18;
+        $maxCombinedContentHeight = 250; // Total ruang konten Slide 1 (y=216..524 dikurangi 2 tab & gap)
+
+        $rencanaLines = max(1, $this->estimateVisualLines($rencanaEntries, $charsPerLine));
+        $progresLines = max(1, $this->estimateVisualLines($progresEntries, $charsPerLine));
+        $rencanaNeededH = max(56, ($rencanaLines * $lineHeightPx) + $boxPadPx);
+        $progresNeededH = max(56, ($progresLines * $lineHeightPx) + $boxPadPx);
+        $muatSatuSlide = ($rencanaNeededH + $progresNeededH) <= $maxCombinedContentHeight;
 
         $slide1 = $presentation->createSlide();
         $this->addRisikoHeader($slide1, $risiko);
 
         // Kotak kiri: Besaran/Level Risiko Aktual
         $this->addOrangeTab($slide1, 92, 92, 330, "Besaran/Level Risiko Aktual s.d. {$namaBulanAktual} {$tahunAktual}");
-        $boxAktual = $this->createFilledBox($slide1, 92, 118, 360, 88, 'FFFFFFFF', 'FF111827', true);
+        $boxAktual = $this->createFilledBox($slide1, 92, 118, 360, 86, 'FFFFFFFF', 'FF111827', true);
         $boxAktual->createTextRun(
             "Besaran/Level risiko aktual berada pada level {$risiko->besaran_risiko} ({$risiko->klasifikasi['label']}), ".
             "dengan Level Kemungkinan {$risiko->level_kemungkinan} dan Level Dampak {$risiko->level_dampak} ".
@@ -517,7 +526,7 @@ class UprPptxExportService
 
         // Kotak kanan: Rekomendasi Besaran Risiko
         $this->addOrangeTab($slide1, 515, 92, 355, "Rekomendasi Besaran Risiko Triwulan {$romawiRekomendasi} {$tahunRekomendasi}");
-        $boxRek = $this->createFilledBox($slide1, 515, 118, 375, 88, 'FFFFFFFF', 'FF111827', true);
+        $boxRek = $this->createFilledBox($slide1, 515, 118, 375, 86, 'FFFFFFFF', 'FF111827', true);
         $rek = $risiko->rekomendasiRisiko->first();
         if ($rek) {
             $rekLines = [trim((string) $rek->deskripsi_rekomendasi)];
@@ -531,33 +540,42 @@ class UprPptxExportService
         }
 
         if ($muatSatuSlide) {
-            $this->addOrangeTab($slide1, 92, 218, 280, 'Rencana Mitigasi');
-            $boxRencana = $this->createFilledBox($slide1, 92, 244, 800, 130, 'FFFFFFFF', 'FF111827', true);
+            // Bagi sisa ruang secara proporsional agar kedua box rapi mengisi tinggi slide tanpa celah kosong besar
+            $sisaRuang = $maxCombinedContentHeight - ($rencanaNeededH + $progresNeededH);
+            $extraRencana = (int) floor($sisaRuang * ($rencanaLines / ($rencanaLines + $progresLines)));
+            $extraProgres = $sisaRuang - $extraRencana;
+
+            $rencanaH = $rencanaNeededH + $extraRencana;
+            $progresH = $progresNeededH + $extraProgres;
+
+            $this->addOrangeTab($slide1, 92, 214, 280, 'Rencana Mitigasi');
+            $boxRencana = $this->createFilledBox($slide1, 92, 240, 800, $rencanaH, 'FFFFFFFF', 'FF111827', true);
             $this->writeEntries($boxRencana, $rencanaEntries, 'Belum ada rencana mitigasi.', 10);
 
-            $this->addOrangeTab($slide1, 92, 386, 280, 'Progress Mitigasi Risiko');
-            $boxProgres = $this->createFilledBox($slide1, 92, 412, 800, 112, 'FFFFFFFF', 'FF111827', true);
+            $progresTabY = 240 + $rencanaH + 10;
+            $this->addOrangeTab($slide1, 92, $progresTabY, 280, 'Progress Mitigasi Risiko');
+            $boxProgres = $this->createFilledBox($slide1, 92, $progresTabY + 26, 800, $progresH, 'FFFFFFFF', 'FF111827', true);
             $this->writeEntries($boxProgres, $progresEntries, 'Belum ada progres mitigasi sampai periode ini.', 10);
 
             return;
         }
 
-        // Mode multi-slide: Rencana Mitigasi mendapat area penuh di bawah Slide 1 (maks 14 baris visual)
-        $rencanaChunks = $this->paginateEntries($rencanaEntries, 14, 21, $charsPerLine);
-        $this->addOrangeTab($slide1, 92, 218, 280, 'Rencana Mitigasi');
-        $boxRencana = $this->createFilledBox($slide1, 92, 244, 800, 276, 'FFFFFFFF', 'FF111827', true);
+        // Mode multi-slide: Rencana Mitigasi mendapat ruang penuh di bawah Slide 1 (maks 17 baris visual)
+        $rencanaChunks = $this->paginateEntries($rencanaEntries, 17, 25, $charsPerLine);
+        $this->addOrangeTab($slide1, 92, 214, 280, 'Rencana Mitigasi');
+        $boxRencana = $this->createFilledBox($slide1, 92, 240, 800, 284, 'FFFFFFFF', 'FF111827', true);
         $this->writeEntries($boxRencana, $rencanaChunks[0] ?? [], 'Belum ada rencana mitigasi.', 10);
 
         for ($i = 1; $i < count($rencanaChunks); $i++) {
             $contSlide = $presentation->createSlide();
             $this->addRisikoHeader($contSlide, $risiko);
             $this->addOrangeTab($contSlide, 92, 92, 300, 'Rencana Mitigasi (Lanjutan)');
-            $boxCont = $this->createFilledBox($contSlide, 92, 118, 800, 402, 'FFFFFFFF', 'FF111827', true);
+            $boxCont = $this->createFilledBox($contSlide, 92, 118, 800, 406, 'FFFFFFFF', 'FF111827', true);
             $this->writeEntries($boxCont, $rencanaChunks[$i], 'Belum ada rencana mitigasi.', 10);
         }
 
-        // Progress Mitigasi Risiko mendapat slide tersendiri (maks 21 baris visual per slide)
-        $progresChunks = $this->paginateEntries($progresEntries, 21, 21, $charsPerLine);
+        // Progress Mitigasi Risiko mendapat slide tersendiri (maks 25 baris visual per slide)
+        $progresChunks = $this->paginateEntries($progresEntries, 25, 25, $charsPerLine);
         if ($progresChunks === []) {
             $progresChunks = [[]];
         }
@@ -566,7 +584,7 @@ class UprPptxExportService
             $this->addRisikoHeader($contSlide, $risiko);
             $tabTitle = $idx === 0 ? 'Progress Mitigasi Risiko' : 'Progress Mitigasi Risiko (Lanjutan)';
             $this->addOrangeTab($contSlide, 92, 92, 320, $tabTitle);
-            $boxProgres = $this->createFilledBox($contSlide, 92, 118, 800, 402, 'FFFFFFFF', 'FF111827', true);
+            $boxProgres = $this->createFilledBox($contSlide, 92, 118, 800, 406, 'FFFFFFFF', 'FF111827', true);
             $this->writeEntries($boxProgres, $chunk, 'Belum ada progres mitigasi sampai periode ini.', 10);
         }
     }
@@ -640,13 +658,13 @@ class UprPptxExportService
     /**
      * Memperkirakan total baris visual agar teks panjang otomatis dibagi ke slide berikutnya.
      *
-     * @param  array<int, array{text: string, status: ?string}>  $entries
+     * @param  array<int, array{prefix: string, text: string, status: ?string}>  $entries
      */
     private function estimateVisualLines(array $entries, int $charsPerLine): int
     {
         $total = 0;
         foreach ($entries as $entry) {
-            $full = $entry['text'].(! empty($entry['status']) ? " ({$entry['status']})" : '');
+            $full = $entry['prefix'].$entry['text'].(! empty($entry['status']) ? " ({$entry['status']})" : '');
             $total += max(1, (int) ceil(mb_strlen($full) / $charsPerLine));
         }
 
@@ -655,10 +673,10 @@ class UprPptxExportService
 
     /**
      * Membagi daftar entri ke beberapa halaman berdasarkan kapasitas baris visual.
-     * Paragraf tunggal yang lebih panjang dari kapasitas satu box juga dipecah rapi per batas kata.
+     * Paragraf tunggal yang melebihi kapasitas satu box dipecah rapi pada batas kata.
      *
-     * @param  array<int, array{text: string, status: ?string}>  $entries
-     * @return array<int, array<int, array{text: string, status: ?string}>>
+     * @param  array<int, array{prefix: string, text: string, status: ?string}>  $entries
+     * @return array<int, array<int, array{prefix: string, text: string, status: ?string}>>
      */
     private function paginateEntries(
         array $entries,
@@ -676,16 +694,17 @@ class UprPptxExportService
         $maxLines = $firstPageMaxLines;
 
         foreach ($entries as $entry) {
+            $prefix = $entry['prefix'];
             $text = $entry['text'];
             $status = $entry['status'];
             $statusLen = $status ? mb_strlen(" ({$status})") : 0;
 
             while ($text !== '') {
                 $availableLines = $maxLines - $usedLines;
-                $neededLines = max(1, (int) ceil((mb_strlen($text) + $statusLen) / $charsPerLine));
+                $neededLines = max(1, (int) ceil((mb_strlen($prefix) + mb_strlen($text) + $statusLen) / $charsPerLine));
 
                 if ($neededLines <= $availableLines) {
-                    $currentPage[] = ['text' => $text, 'status' => $status];
+                    $currentPage[] = ['prefix' => $prefix, 'text' => $text, 'status' => $status];
                     $usedLines += $neededLines;
                     break;
                 }
@@ -699,19 +718,19 @@ class UprPptxExportService
                     continue;
                 }
 
-                // Potong paragraf super panjang sesuai kapasitas baris tersisa
-                $maxChars = max(60, ($availableLines * $charsPerLine) - 4);
+                $maxChars = max(60, ($availableLines * $charsPerLine) - mb_strlen($prefix) - 4);
                 $wrapped = wordwrap($text, $maxChars, "
 ", true);
                 $parts = explode("
 ", $wrapped, 2);
 
-                $currentPage[] = ['text' => trim($parts[0]), 'status' => null];
+                $currentPage[] = ['prefix' => $prefix, 'text' => trim($parts[0]), 'status' => null];
                 $pages[] = $currentPage;
                 $currentPage = [];
                 $usedLines = 0;
                 $maxLines = $nextPageMaxLines;
 
+                $prefix = '';
                 $text = isset($parts[1]) ? trim($parts[1]) : '';
             }
         }
@@ -724,9 +743,10 @@ class UprPptxExportService
     }
 
     /**
-     * Menulis daftar entri tanpa penomoran otomatis beserta status validasi bukti dalam warna muted.
+     * Menulis daftar berhierarki (1., 2. untuk Rencana; 1.1., 1.2., 2.1. untuk Progres)
+     * beserta status validasi bukti dalam warna muted.
      *
-     * @param  array<int, array{text: string, status: ?string}>  $entries
+     * @param  array<int, array{prefix: string, text: string, status: ?string}>  $entries
      */
     private function writeEntries(
         RichText $box,
@@ -744,6 +764,11 @@ class UprPptxExportService
         foreach ($entries as $idx => $entry) {
             $p = $idx === 0 ? $box->getActiveParagraph() : $box->createParagraph();
             $p->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+
+            if ($entry['prefix'] !== '') {
+                $p->createTextRun($entry['prefix'])->getFont()
+                    ->setName('Calibri')->setBold(true)->setSize($fontSize)->setColor(new Color('FF005FAC'));
+            }
 
             $p->createTextRun($entry['text'])->getFont()
                 ->setName('Calibri')->setBold(true)->setSize($fontSize)->setColor(new Color('FF111827'));
