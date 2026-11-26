@@ -29,8 +29,24 @@
                 <p class="mt-0.5 text-sm text-slate-500">Periode {{ $labelPeriodeMatriks }} · Total {{ $risiko->count() }}
                     risiko terpetakan</p>
             </div>
-            <div class="[&>form]:mb-0">
-                @include('partials.filter')
+            <div class="flex flex-wrap items-end gap-3">
+                <div class="[&>form]:mb-0">
+                    @include('partials.filter')
+                </div>
+                @if ($isAdmin)
+                    <a href="{{ route(
+                        'dashboard.export-pdf',
+                        array_filter([
+                            'tahun' => $tahun,
+                            'bulan' => $bulan,
+                            'triwulan' => $triwulan,
+                            'bidang_id' => request('bidang_id'),
+                        ]),
+                    ) }}"
+                        class="rounded-md bg-[#005FAC] px-4 py-2 text-xs font-semibold text-white hover:bg-[#004b8a]">
+                        Export PDF Dashboard
+                    </a>
+                @endif
             </div>
         </div>
 
@@ -242,7 +258,8 @@
                             <table class="w-full border-collapse border border-slate-300 text-center text-xs">
                                 <thead>
                                     <tr class="bg-slate-200 font-semibold text-slate-800">
-                                        <th rowspan="2" class="border border-slate-300 px-3 py-2 text-left">Periode</th>
+                                        <th rowspan="2" class="border border-slate-300 px-3 py-2 text-left">Periode
+                                        </th>
                                         <th colspan="4" class="border border-slate-300 px-2 py-1.5">Y-2
                                             ({{ $tahun - 2 }})
                                         </th>
