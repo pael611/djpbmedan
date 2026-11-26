@@ -44,7 +44,19 @@
                         ]),
                     ) }}"
                         class="rounded-md bg-[#005FAC] px-4 py-2 text-xs font-semibold text-white hover:bg-[#004b8a]">
-                        Export PDF Dashboard
+                        Export PDF
+                    </a>
+                    <a href="{{ route(
+                        'dashboard.export-pptx',
+                        array_filter([
+                            'tahun' => $tahun,
+                            'bulan' => $bulan,
+                            'triwulan' => $triwulan,
+                            'bidang_id' => request('bidang_id'),
+                        ]),
+                    ) }}"
+                        class="rounded-md bg-amber-600 px-4 py-2 text-xs font-semibold text-white hover:bg-amber-700">
+                        Export PPTX Rapat UPR
                     </a>
                 @endif
             </div>

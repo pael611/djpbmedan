@@ -7,6 +7,7 @@ use App\Models\NilaiAwalRisiko;
 use App\Models\IndikatorRisiko;
 use App\Models\ProgresMitigasi;
 use App\Models\Risiko;
+use App\Services\UprPptxExportService;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -14,6 +15,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class ExportController extends Controller
 {
@@ -297,5 +299,26 @@ class ExportController extends Controller
         $filename = Str::slug("peta-risiko-kanwil-djpb-sumut-{$tahun}-{$labelKuartal}").'.pdf';
 
         return $pdf->download($filename);
+    }
+
+    /** Export gabungan Dashboard + Detail Risiko per Bidang ke format .pptx (Rapat UPR) khusus ADMIN. */
+    public function exportRapatUprPptx(Request $request, UprPptxExportService $service): BinaryFileResponse
+    {
+        abort_unless($request->user()?->isAdministrator(), 403);
+
+        $tahun = (int) $request->input('tahun', now()->year);
+        $bulan = $request->filled('bulan') ? (int) $request->input('bulan') : null;
+        if ($bulan !== null && ($bulan < 1 || $bulan > 12)) {
+            $bulan = null;
+        }
+        $triwulan = $request->filled('triwulan') ? (int) $request->input('triwulan') : null;
+        $bidangId = $request->filled('bidang_id') ? (int) $request->input('bidang_id') : null;
+
+        $tempPath = $service->generate($tahun, $bulan, $triwulan, $bidangId);
+        $filename = Str::slug("rapat-upr-kanwil-{$tahun}".($bulan ? "-bulan-{$bulan}" : '')).'.pptx';
+
+        return response()->download($tempPath, $filename, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        ])->deleteFileAfterSend(true);
     }
 }
