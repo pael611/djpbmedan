@@ -11,6 +11,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Header keamanan HTTP global (VA-03)
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
+
         // Alias middleware dashboard master
         $middleware->alias([
             'role.dashboard' => \App\Http\Middleware\CheckRoleDashboard::class,

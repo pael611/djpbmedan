@@ -165,7 +165,7 @@ class RisikoTypeTest extends TestCase
             ->assertSee('name="jenis_risiko"', false)
             ->assertSee('Downside Risk')
             ->assertSee('Upside Risk')
-            ->assertSee('Peristiwa tanpa dampak terhadap SO bukan risiko.');
+            ->assertSee('risiko berdampak negatif yang menghambat pencapaian sasaran');
     }
 
     public function test_matrix_uses_a_star_for_downside_and_an_oval_for_upside(): void

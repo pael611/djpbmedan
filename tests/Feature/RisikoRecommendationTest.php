@@ -257,7 +257,7 @@ class RisikoRecommendationTest extends TestCase
             ->assertOk()
             ->assertSee('Rekomendasi hanya-baca.')
             ->assertSee('Ajukan perubahan rekomendasi')
-            ->assertSee('Ajukan hapus rekomendasi');
+            ->assertSee('Ajukan Hapus');
     }
 
     public function test_duplicate_risk_quarter_recommendation_is_rejected(): void

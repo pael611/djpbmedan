@@ -272,13 +272,12 @@
                                     <tr class="bg-slate-200 font-semibold text-slate-800">
                                         <th rowspan="2" class="border border-slate-300 px-3 py-2 text-left">Periode
                                         </th>
-                                        <th colspan="4" class="border border-slate-300 px-2 py-1.5">Y-2
-                                            ({{ $tahun - 2 }})
-                                        </th>
-                                        <th colspan="4" class="border border-slate-300 px-2 py-1.5">Y-1
-                                            ({{ $tahun - 1 }})</th>
-                                        <th colspan="3" class="border border-slate-300 px-2 py-1.5">Y
-                                            ({{ $tahun }})</th>
+                                        <th colspan="4" class="border border-slate-300 px-2 py-1.5">
+                                            {{ 'Y-2 (' . ($tahun - 2) . ')' }}</th>
+                                        <th colspan="4" class="border border-slate-300 px-2 py-1.5">
+                                            {{ 'Y-1 (' . ($tahun - 1) . ')' }}</th>
+                                        <th colspan="3" class="border border-slate-300 px-2 py-1.5">
+                                            {{ 'Y (' . $tahun . ')' }}</th>
                                     </tr>
                                     <tr class="bg-slate-100 font-semibold text-slate-700">
                                         <th class="border border-slate-300 px-2 py-1.5">BM</th>

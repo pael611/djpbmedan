@@ -128,8 +128,8 @@ class IruLedMonitoringTest extends TestCase
             ->assertOk()
             ->assertSee('Waspada')
             ->assertSee('LK 2 → 3')
-            ->assertSee('UPR tetap menetapkan LK')
-            ->assertSee('Perbaikan IRU: Analis pelayanan')
+            ->assertSee('Perlu meninjau kembali estimasi Level Kemungkinan (LK)')
+            ->assertSee('Perbaikan: Analis pelayanan')
             ->assertSee('Waktu layanan membaik.');
 
         $this->assertSame(2, (int) $risiko->fresh()->level_kemungkinan);
@@ -202,7 +202,7 @@ class IruLedMonitoringTest extends TestCase
                 'tahun' => 2026,
             ]))
             ->assertOk()
-            ->assertSee('31/03/2026: 15.0000 (Waspada)')
+            ->assertSee('31/03/2026 — 15.0000 (Waspada)')
             ->assertSee('LK 2 → 3');
     }
 
@@ -522,8 +522,8 @@ class IruLedMonitoringTest extends TestCase
         $this->actingAs($user)
             ->get(route('risiko.show', $risiko))
             ->assertOk()
-            ->assertSee('Tambah rencana')
-            ->assertSee('Tambah progres')
+            ->assertSee('Tambah Rencana')
+            ->assertSee('Tambah Progres')
             ->assertSee('Menunggu validasi');
         $this->get(route('rencana.evidence', $rencana))->assertOk();
         $this->actingAs($otherField)->get(route('rencana.evidence', $rencana))->assertForbidden();
